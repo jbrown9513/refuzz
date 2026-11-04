@@ -1,0 +1,35 @@
+#!/bin/bash -eu
+# compile_solidity_fuzzer, in the shape of OSS-Fuzz's compile_javascript_fuzzer: makes $OUT/<name> run Foundry's fuzzer on
+# the test function <test> of contract <contract> in the Foundry test <fuzz target>, against the project in $SRC/<project>,
+# which is copied to $OUT/<project> with the test in its refuzz/ folder and built there. Foundry takes neither a
+# dictionary nor a corpus of raw inputs: of libFuzzer's flags $OUT/<name> reads -runs=N (--fuzz-runs) and
+# -max_total_time=N (--fuzz-timeout), and ignores the rest.
+# Usage: compile_solidity_fuzzer <project> <fuzz target> <contract> <test>
+project=$1
+fuzz_target=$2
+contract=$3
+test=$4
+
+if [ ! -d $OUT/$project ]; then
+  cp -r $SRC/$project $OUT/$project
+fi
+
+fuzzer_basename=$(basename -s .t.sol $fuzz_target)
+mkdir -p $OUT/$project/refuzz
+cp $fuzz_target $OUT/$project/refuzz/$fuzzer_basename.t.sol
+(cd $OUT/$project && FOUNDRY_TEST=refuzz forge build)
+
+cat > $OUT/$fuzzer_basename <<WRAPPER
+#!/bin/bash
+project_dir=\$(cd "\$(dirname "\$0")" && pwd -P)/$project
+runs=1000000000 timeout=
+for a in "\$@"; do
+  case \$a in
+    -runs=*) runs=\${a#-runs=} ;;
+    -max_total_time=*) timeout=\${a#-max_total_time=} ;;
+  esac
+done
+cd "\$project_dir"
+FOUNDRY_TEST=refuzz exec forge test --offline --match-path refuzz/$fuzzer_basename.t.sol --match-contract $contract --match-test $test --fuzz-runs "\$runs" \${timeout:+--fuzz-timeout "\$timeout"}
+WRAPPER
+chmod +x $OUT/$fuzzer_basename

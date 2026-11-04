@@ -1,0 +1,9 @@
+#!/bin/bash -eu
+# OSS-Fuzz's compile_python_fuzzer: makes $OUT/<name> run the Atheris target <file>. OSS-Fuzz packages it with PyInstaller;
+# here the target runs with the image's interpreter, which has the project installed.
+fuzzer_path=$1
+shift
+name=$(basename "$fuzzer_path" .py)
+cp "$fuzzer_path" "$OUT/$name.py"
+printf '#!/bin/sh\nexec python3 "$(dirname "$0")/%s.py" "$@"\n' "$name" > "$OUT/$name"
+chmod +x "$OUT/$name"

@@ -1,0 +1,23 @@
+#!/bin/bash -eu
+# OSS-Fuzz's compile_native_go_fuzzer_v2 <package path> <FuzzFunction> <fuzzer name>: as compile_native_go_fuzzer, with
+# go-118-fuzz-build's v2 branch, which needs no extra module requirement.
+path=$1
+function=$2
+fuzzer=$3
+tags="-tags gofuzz"
+
+abs_file_dir=$(go list $tags -f {{.Dir}} $path)
+export fuzzer_filename=$(grep -r -l --include='*.go' "func ${function}(.*testing\.F" "${abs_file_dir}")
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/go_utils.sh"
+
+file_count=$(echo "$fuzzer_filename" | wc -w)
+if [ "$file_count" -eq 1 ] && [ -n "$fuzzer_filename" ] && [ -f "$fuzzer_filename" ]; then
+  build_native_go_fuzzer $fuzzer $function $abs_file_dir $path
+elif [ "$file_count" -gt 1 ]; then
+  echo "Error: Found multiple files with func ${function}(f *testing.F):"
+  echo "$fuzzer_filename"
+  exit 1
+else
+  echo "Could not find the function: func ${function}(f *testing.F)"
+fi

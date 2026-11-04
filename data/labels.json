@@ -1,0 +1,789 @@
+{
+  "about": "Findings the fuzzer reported, labeled by hand against the source. real: a maintainer would fix it, so it must be reported. false: it must not be reported at all. match is a regular expression tried on each reported bug's `path:function` sites and its title.",
+  "labels": [
+    {
+      "repo": "PrefectHQ/prefect",
+      "language": "python",
+      "label": "real",
+      "match": "cli/_utilities\\.py:.*exit_with_error|exit_with_error",
+      "why": "Rich markup in error messages crashes the CLI (portfolio-findings.md)"
+    },
+    {
+      "repo": "PrefectHQ/prefect",
+      "language": "python",
+      "label": "real",
+      "match": "cli/block\\.py:.*_display_block_type",
+      "why": "empty block type description crashes block type inspect"
+    },
+    {
+      "repo": "PrefectHQ/prefect",
+      "language": "python",
+      "label": "false",
+      "match": "prefect_redis/messaging\\.py|_run_without_consumer_group",
+      "why": "fake Redis without decode_responses; the real client always decodes"
+    },
+    {
+      "repo": "PrefectHQ/prefect",
+      "language": "python",
+      "label": "false",
+      "match": "_control_channel\\.py|ControlChannel\\.register",
+      "why": "the runner always starts the channel before register; the port check is the running check"
+    },
+    {
+      "repo": "PrefectHQ/prefect",
+      "language": "python",
+      "label": "false",
+      "match": "settings/profiles\\.py:.*__getitem__|Profiles\\.__getitem__",
+      "why": "a mapping raises KeyError by convention; callers check membership first"
+    },
+    {
+      "repo": "PrefectHQ/prefect",
+      "language": "python",
+      "label": "false",
+      "match": "cli/flow_run\\.py:5[0-9][0-9]|flow-run logs",
+      "why": "head is fetched newest-first and reversed on purpose"
+    },
+    {
+      "repo": "PrefectHQ/prefect",
+      "language": "python",
+      "label": "false",
+      "match": "_atomic_write_json",
+      "why": "os.fdopen failing on a fresh mkstemp descriptor needs a mocked failure; no caller can cause it"
+    },
+    {
+      "repo": "PrefectHQ/prefect",
+      "language": "python",
+      "label": "false",
+      "match": "prefect_gcp/utilities\\.py|Execution\\.get",
+      "why": "the Cloud Run API always returns logUri on a created execution; the test hand-built the status"
+    },
+    {
+      "repo": "hatchet-dev/hatchet",
+      "language": "go",
+      "label": "real",
+      "match": "pkg/client/client\\.go|defaultClientOpts|client\\.New",
+      "why": "client.New returns an error but panics when the config fails to load"
+    },
+    {
+      "repo": "hatchet-dev/hatchet",
+      "language": "go",
+      "label": "real",
+      "match": "features/filters\\.go|filtersClientImpl\\.Update|FiltersClient\\.Update|MustParse",
+      "why": "SDK feature clients panic on a malformed id instead of returning an error"
+    },
+    {
+      "repo": "hatchet-dev/hatchet",
+      "language": "go",
+      "label": "false",
+      "match": "DefaultRequestDecoderValidator|active=false",
+      "why": "the generated validator's required bool is the OpenAPI spec's choice"
+    },
+    {
+      "repo": "hatchet-dev/hatchet",
+      "language": "go",
+      "label": "false",
+      "match": "showViewSelector|tuiModel",
+      "why": "the view list is fixed in code; no unknown type can be selected"
+    },
+    {
+      "repo": "hatchet-dev/hatchet",
+      "language": "go",
+      "label": "false",
+      "match": "RemoveProfileIfTokenMatches",
+      "why": "profiles are never stored with an empty token"
+    },
+    {
+      "repo": "hatchet-dev/hatchet",
+      "language": "go",
+      "label": "false",
+      "match": "NewStaticExchange",
+      "why": "the config's tenant id is the one the token was issued for; reading it is deliberate"
+    },
+    {
+      "repo": "hatchet-dev/hatchet",
+      "language": "go",
+      "label": "false",
+      "match": "boundedGzipReader",
+      "why": "reading one byte past the limit is how it detects the overflow; a comment says so"
+    },
+    {
+      "repo": "hatchet-dev/hatchet",
+      "language": "go",
+      "label": "false",
+      "match": "rateLimiter\\.use",
+      "why": "the task id is not needed on the success path"
+    },
+    {
+      "repo": "hatchet-dev/hatchet",
+      "language": "go",
+      "label": "false",
+      "match": "printProfileEnvTTYHint",
+      "why": "the profile name comes from the user's own config and the hint is for their terminal"
+    },
+    {
+      "repo": "hatchet-dev/hatchet",
+      "language": "go",
+      "label": "false",
+      "match": "UpgradeSigningPayload",
+      "why": "the parts are fixed-format ids; no collision a caller can produce"
+    },
+    {
+      "repo": "qdrant/qdrant",
+      "language": "rust",
+      "label": "false",
+      "match": "data_types/vectors\\.rs|VectorStructInternal",
+      "why": "debug_assert on a state callers never construct; release builds are unaffected"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "store/base/batch\\.py|AsyncBatchedBaseStore",
+      "why": "an async store takes the running loop on purpose; every caller builds it inside async code"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "checkpoint/sqlite/utils\\.py|_metadata_predicate|search_where",
+      "why": "a dotted filter key is a nested JSON path by design; the project's own test filters on user.access-level"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "pregel/remote\\.py|RemoteGraph\\.astream_events",
+      "why": "headers go to httpx, which rejects CR and LF in header values; the test mocks the client and checks only the pass-through"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "RemoteGraph\\.a?get_graph",
+      "why": "DrawableGraph is an import alias of Graph; the test compared type names"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "real",
+      "match": "tool_validator\\.py:.*run_one|ToolValidator\\.run_one|schemas_by_name",
+      "why": "a hallucinated tool name crashes ValidationNode with KeyError instead of an error ToolMessage the model can retry on (deprecated class)"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "tool_validator\\.py:.*_get_message|ToolValidator\\._get_message",
+      "why": "an empty message list raises IndexError rather than ValueError; no caller passes an empty list and nothing is harmed"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "ThreadsClient\\.search|SyncCronClient\\.search|_get_headers|[Hh]eader",
+      "why": "header names and values go to httpx, which rejects CR and LF itself; nothing reaches the wire"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "graph/state\\.py:.*_get_json_schema|_get_json_schema",
+      "why": "pydantic's documented rule on Python below 3.12: a schema needs typing_extensions.TypedDict, which langgraph's docs use"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "cache/redis/__init__\\.py|RedisCache\\.a?clear",
+      "why": "fails only with a key prefix holding Redis glob characters; the prefix is the developer's own setting (default langgraph:cache:)"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "tool_node\\.py:.*tools_condition|tools_condition",
+      "why": "an empty message list raises IndexError rather than the documented ValueError; no graph routes an empty list and nothing is harmed"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "_quote_path_param|RunsClient\\.cancel",
+      "why": "the test read httpx's decoded url.path; the path is encoded (safe=\"\"), as raw_path shows"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "store/sqlite/aio\\.py|AsyncSqliteStore\\._cursor|AsyncSqliteStore\\.abatch",
+      "why": "the test passed a default aiosqlite connection; from_conn_string opens it with isolation_level=None, which the store relies on"
+    },
+    {
+      "repo": "weaviate/weaviate",
+      "language": "go",
+      "label": "false",
+      "match": "parse_aggregate_request\\.go|AggregateParser\\.Aggregate|grpc/v1/filters\\.go:.*ExtractFilters",
+      "why": "the test passed a nil namespacing.Qualifier; the gRPC service always passes state.NamespaceQualifier"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "examples/",
+      "why": "example code, not the library"
+    },
+    {
+      "repo": "weaviate/weaviate",
+      "language": "go",
+      "label": "false",
+      "match": "entities/storobj/|FromBinary|ParseAndExtract",
+      "why": "decodes weaviate's own on-disk object format; only corrupted storage gives a short buffer"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "NodeBuilder\\.set_timeout|set_timeout",
+      "why": "a NaN timeout is the developer's own configuration value; no user input reaches it"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "real",
+      "match": "Pregel\\.a?clear_cache|clear_cache",
+      "why": "clear_cache(nodes=[]) clears every node's cache: `nodes or self.nodes.keys()` treats an empty list as not given"
+    },
+    {
+      "repo": "weaviate/weaviate",
+      "language": "go",
+      "label": "false",
+      "match": "ReadObjectCountFromMetadataFile|[Mm]etadata[Ff]ile",
+      "why": "reads a metadata file weaviate writes itself; only a corrupted file gives the bad lengths"
+    },
+    {
+      "repo": "weaviate/weaviate",
+      "language": "go",
+      "label": "false",
+      "match": "lsmkv/segmentindex/|Header\\.SecondaryIndex|UnmarshalPropertiesFromObject",
+      "why": "parses weaviate's own segment and object files; only corrupted storage gives the bad offsets"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "real",
+      "match": "pregel/_draw\\.py|draw_graph",
+      "why": "get_graph() on a low-level Pregel whose first step has no tasks raises UnboundLocalError: deferred_nodes is assigned only inside the step loop"
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "language": "python",
+      "label": "false",
+      "match": "pregel/_messages\\.py|on_chat_model_start",
+      "why": "an internal callback handler given metadata langgraph never passes"
+    },
+    {
+      "repo": "weaviate/weaviate",
+      "language": "go",
+      "label": "false",
+      "match": "rest/search/handler\\.go|Handler\\.Bm25",
+      "why": "the test called the REST handler with a nil body; the HTTP layer always parses or rejects the body first"
+    },
+    {
+      "repo": "inngest/inngest",
+      "language": "go",
+      "label": "real",
+      "match": "pkg/inngest/concurrency\\.go|ConcurrencyLimits\\.UnmarshalJSON",
+      "why": "the numeric legacy form returns before Step is backfilled from Limits, against the comment's stated intent; latent, nothing reads Step yet"
+    },
+    {
+      "repo": "inngest/inngest",
+      "language": "go",
+      "label": "real",
+      "match": "pkg/event/event\\.go|Event\\.Validate",
+      "why": "ts*1_000_000 overflows int64 for timestamps past ~2262, so some far-out-of-range event timestamps pass the 1980-2100 check"
+    },
+    {
+      "repo": "inngest/inngest",
+      "language": "go",
+      "label": "false",
+      "match": "pkg/duckdb/query/manager\\.go|pkg/publicerr/.*Wrap",
+      "why": "publicerr.Error.Error() is documented to return the root cause for logging; the quoted promise was invented, and the site was placed in an unrelated Wrap"
+    },
+    {
+      "repo": "google/gvisor",
+      "language": "go",
+      "label": "false",
+      "match": "RemoveFullRangeWith",
+      "why": "generated segment-set method panics on an empty range on an empty set; every real caller (pgalloc) passes a non-empty chunk or page range, and FileRangeSet's copy is never called"
+    },
+    {
+      "repo": "cloud-hypervisor/cloud-hypervisor",
+      "language": "rust",
+      "label": "false",
+      "match": "formats/qcow/header\\.rs|ImageType\\.from_str",
+      "why": "the test parsed block::ImageType, whose from_str lowercases on purpose; the qcow header's ImageType it blamed rejects \"raW\" and was never run"
+    },
+    {
+      "repo": "google/gvisor",
+      "language": "go",
+      "label": "real",
+      "match": "pkg/bpf/bpf_unsafe\\.go|ParseBytecode",
+      "why": "empty bytecode passes the size check and panics at &bytecode[0] instead of returning the error Compile gives for an empty program; latent, the only caller passes build-time seccomp programs"
+    },
+    {
+      "repo": "dagster-io/dagster",
+      "language": "python",
+      "label": "false",
+      "match": "serdes/serdes\\.py|_unpack_object",
+      "why": "serdes reads Dagster's own storage and inter-process messages; an unhashable __class__ only comes from hand-written JSON"
+    },
+    {
+      "repo": "dagster-io/dagster",
+      "language": "python",
+      "label": "false",
+      "match": "dagster_cloud/auth/constants\\.py|decode_agent_token|decode_region_from_uuid",
+      "why": "the agent token is the deployer's own config value issued by Dagster Cloud; a malformed or crafted token only gives a less helpful error"
+    },
+    {
+      "repo": "dagster-io/dagster",
+      "language": "python",
+      "label": "false",
+      "match": "dagster_webserver/graphql\\.py|graphql_http_endpoint",
+      "why": "not a bug: the real route is limited to GET and POST, so Starlette answers others with 405 and an Allow header; the test used its own route"
+    },
+    {
+      "repo": "dagster-io/dagster",
+      "language": "python",
+      "label": "false",
+      "match": "python_modules/automation/",
+      "why": "internal developer tooling (dagster-dev commands), not shipped"
+    },
+    {
+      "repo": "dagster-io/dagster",
+      "language": "python",
+      "label": "false",
+      "match": "_vendored/",
+      "why": "vendored copy of python-dateutil, third-party code"
+    },
+    {
+      "repo": "crewAIInc/crewAI",
+      "language": "python",
+      "label": "false",
+      "match": "evaluation/json_parser\\.py|extract_json_from_llm_response",
+      "why": "returns a non-dict for scalar JSON, but every caller catches the resulting error and records a failed parse; experimental module"
+    },
+    {
+      "repo": "dagster-io/dagster",
+      "language": "python",
+      "label": "real",
+      "match": "dagster_webserver/external_assets\\.py",
+      "why": "malformed JSON body to the public report_asset_* REST endpoints raises JSONDecodeError (500) while every other bad input gets a 400"
+    },
+    {
+      "repo": "dagster-io/dagster",
+      "language": "python",
+      "label": "false",
+      "match": "dagster_cloud_cli/docker_utils\\.py|upload_image",
+      "why": "the auth token is an AWS ECR token, AWS:<base64 password>, which never has a second colon"
+    },
+    {
+      "repo": "mem0ai/mem0",
+      "language": "python",
+      "label": "false",
+      "match": "-plugin/core/mcp_server\\.py",
+      "why": "local stdio MCP server whose only client is Claude Code; non-object params are answered with a JSON-RPC error, not a crash"
+    },
+    {
+      "repo": "mem0ai/mem0",
+      "language": "python",
+      "label": "real",
+      "match": "mem0_cli/commands/utils\\.py|cmd_import",
+      "why": "one non-object entry in the import file aborts the import halfway with a traceback, though the loop counts other bad entries as failed and carries on"
+    },
+    {
+      "repo": "mem0ai/mem0",
+      "language": "python",
+      "label": "false",
+      "match": "_resolve_repo_cached",
+      "why": "a working directory cannot contain a NUL byte"
+    },
+    {
+      "repo": "mem0ai/mem0",
+      "language": "python",
+      "label": "false",
+      "match": "commands/init_cmd\\.py|run_init",
+      "why": "failed on no network in the test container; aborting on EOF at the prompt is the intended handling"
+    },
+    {
+      "repo": "openai/openai-agents-python",
+      "language": "python",
+      "label": "false",
+      "match": "_openai_websocket\\.py|refresh_openai_client_api_key_if_supported",
+      "why": "the test passed a sync openai.OpenAI where the model is declared to take AsyncOpenAI"
+    },
+    {
+      "repo": "bentoml/BentoML",
+      "language": "python",
+      "label": "real",
+      "match": "io_descriptors/(text|json|numpy|image|pandas|file)\\.py",
+      "why": "invalid UTF-8 request body to a Text input API is an unhandled UnicodeDecodeError (500), where JSON input turns a bad body into BadInput (400)"
+    },
+    {
+      "repo": "bentoml/BentoML",
+      "language": "python",
+      "label": "false",
+      "match": "service/openapi/specification\\.py",
+      "why": "OpenAPISpecification.from_yaml_file has no caller; BentoML always sets servers when it builds the spec"
+    },
+    {
+      "repo": "huggingface/smolagents",
+      "language": "python",
+      "label": "false",
+      "match": "validate_arguments",
+      "why": "tool names must be Python identifiers on purpose (CodeAgent calls tools as functions); the error says so"
+    },
+    {
+      "repo": "bentoml/BentoML",
+      "language": "python",
+      "label": "real",
+      "match": "_bentoml_sdk/validators\\.py",
+      "why": "fix e570eb2 (#5606) replaced `return obj` for str input with an assignment, but the next branch starts a new if chain, so str now falls to the else and raises Invalid file type"
+    },
+    {
+      "repo": "bentoml/BentoML",
+      "language": "python",
+      "label": "false",
+      "match": "SyncHTTPClient|from_url",
+      "why": "docs.json comes from the BentoML server the user points the client at; invalid UTF-8 there means a broken server"
+    },
+    {
+      "repo": "huggingface/smolagents",
+      "language": "python",
+      "label": "real",
+      "match": "_function_type_hints_utils\\.py",
+      "why": "documented (choices: [...]) JSON list block crashes on non-string choices: .strip() on every element"
+    },
+    {
+      "repo": "huggingface/smolagents",
+      "language": "python",
+      "label": "real",
+      "match": "local_python_executor\\.py",
+      "why": "the execution time limit never interrupts: timeout() exits a `with ThreadPoolExecutor` block whose shutdown waits for the worker, so the caller blocks until the code finishes; 87**87**87**87 hangs the agent"
+    },
+    {
+      "repo": "huggingface/smolagents",
+      "language": "python",
+      "label": "false",
+      "match": "default_tools\\.py|search_bing|search_exa|extract_results",
+      "why": "a malformed reply from the search service raises inside a tool, which the agent reports to the model as a tool error"
+    },
+    {
+      "repo": "huggingface/smolagents",
+      "language": "python",
+      "label": "false",
+      "match": "monitoring\\.py|log_messages",
+      "why": "hinted list[dict] but every caller passes ChatMessage objects, which have .dict()"
+    },
+    {
+      "repo": "bentoml/BentoML",
+      "language": "python",
+      "label": "false",
+      "match": "_do_pull_bento",
+      "why": "a truncated download from the user's own Yatai/BentoCloud raises a tarfile error, which is an error, not a wrong result"
+    },
+    {
+      "repo": "huggingface/smolagents",
+      "language": "python",
+      "label": "false",
+      "match": "smolagents/serialization\\.py",
+      "why": "malformed data from the remote sandbox raises TypeError rather than a cleaner error; it fails, it does not return a wrong value or execute anything"
+    },
+    {
+      "repo": "bentoml/BentoML",
+      "language": "python",
+      "label": "false",
+      "match": "build_config\\.py",
+      "why": "bentofile.yaml is the developer's own build config; a bare-string file only gives a less helpful error"
+    },
+    {
+      "repo": "openai/openai-agents-python",
+      "language": "python",
+      "label": "false",
+      "match": "sandbox/workspace_paths\\.py",
+      "why": "a NUL-byte path is still rejected, with ValueError instead of InvalidManifestPathError; the policy fails closed"
+    },
+    {
+      "repo": "bentoml/BentoML",
+      "language": "python",
+      "label": "false",
+      "match": "resolve_user_filepath",
+      "why": "the path is the user's own CLI/config value; a NUL byte is rejected with ValueError"
+    },
+    {
+      "repo": "huggingface/smolagents",
+      "language": "python",
+      "label": "false",
+      "match": "check_safer_result",
+      "why": "a dict with __spec__ but no __name__ raises KeyError: the safety check still fails closed"
+    },
+    {
+      "repo": "huggingface/smolagents",
+      "language": "python",
+      "label": "false",
+      "match": "vision_web_browser\\.py",
+      "why": "demo browser script starts the browser before the agent runs; driver is not None there"
+    },
+    {
+      "repo": "mlflow/mlflow",
+      "language": "python",
+      "label": "false",
+      "match": "dependencies_schemas\\.py",
+      "why": "RetrieverSchema.to_dict wraps its fields and from_dict takes them bare, but nothing in MLflow passes one to the other"
+    },
+    {
+      "repo": "mlflow/mlflow",
+      "language": "python",
+      "label": "false",
+      "match": "workspace_utils\\.py|_normalize_workspace",
+      "why": "typed str; every caller passes a header, env var or context string, never a dict"
+    },
+    {
+      "repo": "mlflow/mlflow",
+      "language": "python",
+      "label": "false",
+      "match": "llama_index/pyfunc_wrapper\\.py",
+      "why": "Workflow inputs must be dicts; string rows are rejected either way, with a TypeError instead of the intended ValueError"
+    },
+    {
+      "repo": "mlflow/mlflow",
+      "language": "python",
+      "label": "false",
+      "match": "Model\\.load|models/model\\.py",
+      "why": "a malformed MLmodel file fails to load either way; only the exception type differs"
+    },
+    {
+      "repo": "open-iscsi/rtslib-fb",
+      "language": "python",
+      "label": "false",
+      "match": "rtslib/target\\.py",
+      "why": "needs a saveconfig.json written with a null LUN index and a malformed storage object; rtslib writes that file itself"
+    },
+    {
+      "repo": "open-iscsi/rtslib-fb",
+      "language": "python",
+      "label": "false",
+      "match": "rtslib/tcm\\.py",
+      "why": "an over-long admin-supplied name is rejected with OSError instead of RTSLibError; error type only"
+    },
+    {
+      "repo": "open-iscsi/rtslib-fb",
+      "language": "python",
+      "label": "false",
+      "match": "is_dev_in_use",
+      "why": "internal helper, not exported; every caller passes a block device, so a regular file never reaches it"
+    },
+    {
+      "repo": "open-iscsi/rtslib-fb",
+      "language": "python",
+      "label": "false",
+      "match": "rtslib/alua\\.py|_get_alua_write_metadata",
+      "why": "returns the integer the kernel writes in configfs, which is 0 or 1; the 0/1 assertion was invented over a faked file"
+    },
+    {
+      "repo": "open-iscsi/rtslib-fb",
+      "language": "python",
+      "label": "false",
+      "match": "to_normalized_wwn|normalize_wwn",
+      "why": "the IQN check is a loose prefix match by design; the WWN comes from a root admin and a NUL fails at the configfs mkdir"
+    },
+    {
+      "repo": "open-iscsi/rtslib-fb",
+      "language": "python",
+      "label": "false",
+      "match": "get_size_for_disk_name",
+      "why": "IndexError needs a kernel disk named p<digit>; names come from the kernel. (Aside: the partition fallback retries the same name, so it is dead code, but partitions are found by name directly.)"
+    },
+    {
+      "repo": "open-iscsi/targetcli-fb",
+      "language": "python",
+      "label": "false",
+      "match": "complete_path|ui_complete_create",
+      "why": "tab completion in the root admin's own shell: a NUL cannot be typed, and a pathological glob pattern only makes that tab press slow"
+    },
+    {
+      "repo": "open-iscsi/targetcli-fb",
+      "language": "python",
+      "label": "real",
+      "match": "targetcli_shell\\.py|switch_to_daemon",
+      "why": "daemon-mode prompt loop calls input() without handling EOF: piped batch input without a final 'exit' raises EOFError and runs none of the queued commands; Ctrl-D in interactive mode is a traceback"
+    },
+    {
+      "repo": "open-iscsi/targetcli-fb",
+      "language": "python",
+      "label": "false",
+      "match": "targetcli_shell\\.py:main|while-not-_exit|call_daemon",
+      "why": "needs the trusted local targetclid to close mid-reply (the client then spins on recv() returning b''). Seen while triaging, not found by perch: call_daemon decodes each 1024-byte chunk separately, so non-ASCII output split across chunks raises UnicodeDecodeError"
+    },
+    {
+      "repo": "modelcontextprotocol/typescript-sdk",
+      "language": "typescript",
+      "label": "false",
+      "match": "inboundClassification\\.ts:classifyInboundRequest",
+      "why": "reproducer casts undefined to the httpMethod: string field; every caller passes Request.method, which is always a string"
+    },
+    {
+      "repo": "modelcontextprotocol/typescript-sdk",
+      "language": "typescript",
+      "label": "false",
+      "match": "protocol\\.ts:HarnessProtocol|HarnessProtocol",
+      "why": "HarnessProtocol is the reproducer's own subclass of the abstract Protocol and leaves out the abstract assertRequestHandlerCapability; real subclasses (Client, Server) define it"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "real",
+      "match": "inbound\\.py:decode_header_value",
+      "why": "one non-ASCII byte in a =?base64?...?= Mcp-Name header (Starlette decodes headers as latin-1) makes b64decode raise ValueError, not binascii.Error; the modern POST handler has no handler around classify_inbound_request, so the server answers 500 where the docstring promises None and a HEADER_MISMATCH rejection. Confirmed end to end with MCPServer.streamable_http_app"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "utils\\.py:union_scopes",
+      "why": "previous_scope is the client's own earlier request, which never repeats a scope"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "transport_security\\.py:TransportSecurityMiddleware\\._validate_origin",
+      "why": "browsers send the serialized origin in lower case; case-sensitive matching can only reject, never admit"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "transport_security\\.py:TransportSecurityMiddleware\\._validate_host",
+      "why": "a rebinding page cannot make its Host start with an allowed host and a colon; no bypass"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "transport_security\\.py:TransportSecurityMiddleware\\._validate_content_type",
+      "why": "application/jsonp is not CORS-safelisted either, so it still forces a preflight; no protection lost"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "inbound\\.py:validate_mcp_param_headers",
+      "why": "which of two mismatched headers is named first; the request is rejected either way"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "methods\\.py:validate_client_notification",
+      "why": "documented only to raise on bad input; returns nothing by design"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "func_metadata\\.py:FuncMetadata\\.convert_result",
+      "why": "reproducer returns InputRequiredResult from mcp_types._v2026_07_28, which docs/migration.md says not to import; the public class passes through"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "revoke\\.py:RevocationHandler\\.handle",
+      "why": "asks for documentation, not a defect"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "json_response\\.py:render",
+      "why": "passes a non-model to a response class every caller gives a pydantic model"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "register\\.py:RegistrationHandler\\.handle",
+      "why": "an empty client_name not echoed in the registration response; nothing depends on it"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "_probe\\.py:negotiate_auto",
+      "why": "stub returns snake_case supported_versions without the required fields, so DiscoverResult validation fails and the documented initialize fallback runs"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "_streamable_http_modern\\.py:handle_modern_request",
+      "why": "client disconnects mid-body: the ExceptionGroup only reaches the ASGI server's log; the client is gone"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "_otel\\.py:extract_trace_context",
+      "why": "carrier passed as a str; request _meta is validated as a dict"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "tutorial002\\.py:pay_deposit",
+      "why": "docs_src example code"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "subscriptions\\.py:event_matches",
+      "why": "resource URIs are compared as exact strings in MCP; host case variants are different URIs"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "types\\.py:_default_file_encoding",
+      "why": "mime type with spaced, quoted charset comes from the developer's own resource declaration"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "provider\\.py:principal_components",
+      "why": "asserts a numeric iss claim is dropped, which nothing promises; claims come from the server's own token verifier"
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "language": "python",
+      "label": "false",
+      "match": "tutorial003\\.py:restock",
+      "why": "docs_src example code; asks for documentation"
+    },
+    {
+      "repo": "apache/airflow",
+      "language": "python",
+      "label": "false",
+      "match": "decoders\\.py:decode_relativedelta",
+      "why": "reproducer feeds DeltaTriggerTimetable.deserialize a tagged {__type, __var} interval; encode_interval writes seconds or an untagged relativedelta dict, so Airflow's own serialized DAG format never holds that input"
+    },
+    {
+      "repo": "apache/airflow",
+      "language": "python",
+      "label": "false",
+      "match": "utils/yaml\\.py:safe_load|_parse_yaml_file",
+      "why": "the local-filesystem secrets file is the deployer's own config; a control character gives yaml.ReaderError instead of Airflow's FileSyntaxError message, a nit"
+    }
+  ]
+}

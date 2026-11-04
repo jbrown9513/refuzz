@@ -1,0 +1,18 @@
+#!/bin/bash -eu
+# compile_lua_fuzzer <target.lua> [project folder]: copies the luzer target to $OUT and writes $OUT/<name>, which runs it with
+# lua5.4 (luzer starts libFuzzer from the target's luzer.Fuzz call), the modules the build installed on the default path and
+# the project folder (by default the current one) after them, and luzer's sanitizer runtime preloaded so a C module built
+# with the instrumented flags loads. Arguments to $OUT/<name> go to libFuzzer.
+target=$1
+project=$(realpath "${2:-$PWD}")
+name=$(basename "$target" .lua)
+cp "$target" "$OUT/$name.lua"
+cat > "$OUT/$name" <<WRAPPER
+#!/bin/sh
+this_dir=\$(dirname "\$0")
+export LUA_PATH="\$(luarocks --lua-version 5.4 path --lr-path);$project/?.lua;$project/?/init.lua;;"
+export LUA_CPATH="\$(luarocks --lua-version 5.4 path --lr-cpath);;"
+export ASAN_OPTIONS="\${ASAN_OPTIONS:+\$ASAN_OPTIONS:}detect_leaks=0"
+LD_PRELOAD="\$(lua5.4 -e 'io.write(require("luzer_impl").path.asan)')" exec lua5.4 "\$this_dir/$name.lua" "\$@"
+WRAPPER
+chmod +x "$OUT/$name"

@@ -1,0 +1,25 @@
+#!/bin/bash -eu
+# OSS-Fuzz's compile_go_fuzzer <package path> <Function> <fuzzer name> [tags]: builds a go-fuzz style
+# `func Fuzz(data []byte) int` of the package into $OUT/<fuzzer name>, instrumented by go114-fuzz-build and linked with
+# libFuzzer. OSS-Fuzz's coverage branch is left out: this image builds with SANITIZER=address only.
+path=$1
+function=$2
+fuzzer=$3
+tags="-tags gofuzz"
+if [[ $# -eq 4 ]]; then
+  tags="-tags $4"
+fi
+
+(
+cd $GOPATH/src/$path || true
+# In the right directory, with a go.mod but no go.sum.
+go mod tidy || true
+# The project was downloaded with go get when go list fails.
+go list $tags $path || { cd $GOPATH/pkg/mod/ && cd `echo $path | cut -d/ -f1-3 | awk '{print $1"@*"}'`; } || cd -
+# The project has no go.mod when go list fails again.
+go list $tags $path || { go mod init $path && go mod tidy ;}
+
+echo "Running go-fuzz $tags -func $function -o $fuzzer.a $path"
+go-fuzz $tags -func $function -o $fuzzer.a $path
+$CXX $CXXFLAGS $LIB_FUZZING_ENGINE $fuzzer.a -o $OUT/$fuzzer
+)

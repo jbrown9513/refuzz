@@ -1,0 +1,19 @@
+#!/bin/bash -eu
+# OSS-Fuzz's compile_native_go_fuzzer <package path> <FuzzFunction> <fuzzer name>: builds a native Go fuzz test
+# (`func FuzzXxx(f *testing.F)`) of the package into $OUT/<fuzzer name>, linked with libFuzzer by go-118-fuzz-build. The
+# module must require github.com/AdamKorcz/go-118-fuzz-build/testing, as OSS-Fuzz projects' build.sh adds it.
+path=$1
+function=$2
+fuzzer=$3
+tags="-tags gofuzz"
+
+abs_file_dir=$(go list $tags -f {{.Dir}} $path)
+export fuzzer_filename=$(grep -r -l --include='*.go' -s "$function" "${abs_file_dir}")
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/go_utils.sh"
+
+if [ $(grep -r "func $function" $fuzzer_filename | grep "testing.F" | wc -l) -eq 1 ]; then
+  build_native_go_fuzzer_legacy $fuzzer $function $abs_file_dir $path
+else
+  echo "Could not find the function: func ${function}(f *testing.F)"
+fi

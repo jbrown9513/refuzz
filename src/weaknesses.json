@@ -1,0 +1,938 @@
+[
+  {
+    "id": "CWE-20",
+    "name": "Improper Input Validation",
+    "where": "A function that validates, classifies or parses outside input (a host, address, URI, document or option) and whose verdict or parsed parts callers trust to make a security decision.",
+    "invariant": "Every input it accepts satisfies the format and constraints its documentation states, and its verdict on an input agrees with what that input actually is: an input outside the documented format is rejected (raises or returns the error), not accepted with parts the caller will misread.",
+    "oracle": "property",
+    "attacks": [
+      "an input well-formed on its surface but violating the documented format in one field (a host field holding an embedded \"@\", a non-numeric port), passed where the caller trusts the parsed parts",
+      "a value using a non-canonical or alternate encoding of a reserved character (percent-escape, unicode homoglyph, overlong UTF-8) that normalizes to a rejected form only after the check runs",
+      "a value with trailing/leading whitespace, a NUL byte, or a control character the validator strips but a downstream consumer keeps",
+      "an input whose type disagrees with what the validator expects (an array or map where a scalar is documented), accepted and read as the wrong kind"
+    ]
+  },
+  {
+    "id": "CWE-22",
+    "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')",
+    "where": "A function that resolves, opens, extracts or writes a path built from an archive entry name, a URL, a request parameter or other outside input, relative to a base directory or allowlisted root.",
+    "invariant": "Every path it reads, writes or returns, once normalized and resolved (with `..`, absolute paths, drive letters and backslashes taken into account), stays inside the base directory; an input that would resolve outside it is rejected rather than followed or silently clamped to another file.",
+    "oracle": "property",
+    "attacks": [
+      "an entry name containing \"../\" sequences that resolve above the base directory",
+      "an absolute path supplied where a relative one is expected, as the entry or target name",
+      "a Windows drive-letter or backslash path (\"C:\\\\...\" or \"..\\\\..\\\\\") against a base directory on a system that honors it",
+      "a URL-encoded or double-encoded traversal (\"..%2f\", \"%2e%2e%2f\", \"..%252f\") that resolves to \"..\" only after a decode the check skips",
+      "a symlink entry that points outside the base followed by a file entry written through it",
+      "a name that equals the base directory path as a prefix of a sibling (\"/base\" vs \"/base-evil\") so a prefix check passes"
+    ]
+  },
+  {
+    "id": "CWE-41",
+    "name": "Improper Resolution of Path Equivalence",
+    "where": "A function that matches a path, host or resource name against a list of patterns, rules or exact-match entries, where several spellings or overlapping patterns can name the same resource.",
+    "invariant": "Equivalent spellings of the same resource get the same decision, and the most specific matching rule wins: a path or host is never given a policy meant for a different, more permissive entry because of how it was spelled or how the rules were ordered.",
+    "oracle": "property",
+    "attacks": [
+      "two spellings of one path differing only by a trailing slash, a \"./\" segment, or a doubled separator, expecting the same rule to apply to both",
+      "a path with a trailing dot or trailing space that the filesystem strips, matched against a rule for the stripped form",
+      "a mixed-case spelling of a path on a case-insensitive target where the rule was written in one case",
+      "a percent-encoded or unicode-normalized spelling that names the same resource as an allowlisted entry",
+      "overlapping rules ordered so a more permissive pattern matches before the specific deny"
+    ]
+  },
+  {
+    "id": "CWE-59",
+    "name": "Improper Link Resolution Before File Access ('Link Following')",
+    "where": "A function that creates, extracts, copies, deletes or changes permissions on files under a directory, where entries or existing files may be symbolic or hard links.",
+    "invariant": "Every file it writes, removes or changes is the file inside the target directory that the input names, never a file a symbolic or hard link points to outside it; a link that resolves outside the target directory is rejected or created without being followed.",
+    "oracle": "property",
+    "attacks": [
+      "a symbolic link entry whose target resolves outside the target directory, followed by a write through its name",
+      "a hard link entry naming an existing file outside the directory, then a permission or content change applied through it",
+      "a link whose target is itself a link chain ending outside the base",
+      "an entry that replaces a directory component of a later entry's path with a symlink to an external directory"
+    ]
+  },
+  {
+    "id": "CWE-61",
+    "name": "UNIX Symbolic Link (Symlink) Following",
+    "where": "A function that extracts or writes archive entries or other outside-named files into a directory, where an earlier entry can create a symbolic link that a later entry's path passes through.",
+    "invariant": "After it runs, no file outside the target directory has been created or changed, even when earlier entries planted symbolic links that later entries' paths traverse; the real path of every written file stays inside the target directory.",
+    "oracle": "property",
+    "attacks": [
+      "an archive with an early entry creating a symlink to an external directory and a later entry whose path traverses through that symlink name",
+      "an entry naming a symlink to \"/\" or an absolute external path, followed by a regular-file entry written beneath it",
+      "two entries where the first makes a symlinked subdirectory and the second writes a file \"inside\" it that lands outside the base",
+      "a symlink entry and its dependent file entry ordered so the link exists before the write"
+    ]
+  },
+  {
+    "id": "CWE-74",
+    "name": "Improper Neutralization of Special Elements in Output Used by a Downstream Component ('Injection')",
+    "where": "A function that builds code, a query, a command, a template, a header or another structured string for a downstream interpreter, copying outside input (including option names and settings) into it.",
+    "invariant": "Outside input appears in the built output only as data in the slot meant for it: it never adds, closes or changes the structure (statements, delimiters, keys, lines) the downstream component parses.",
+    "oracle": "property",
+    "attacks": [
+      "a value carrying the downstream interpreter's structural delimiter (a quote, a statement separator, a newline) in a slot meant for data",
+      "a value that closes its surrounding context and opens a new structural element the parser will act on",
+      "the same value reused into two output contexts where one of them treats a character as structure",
+      "an option name or key, not just a value, chosen to add a new directive the builder copies in"
+    ]
+  },
+  {
+    "id": "CWE-77",
+    "name": "Improper Neutralization of Special Elements used in a Command ('Command Injection')",
+    "where": "A function that builds a command or argument list for an external program (git, a shell tool, a subprocess) from caller-supplied paths, URLs, refs or options.",
+    "invariant": "The command it runs or returns contains only the program and options the caller intended plus the outside values as plain operands: no outside value becomes an extra command, a shell metacharacter sequence, or an option the function's unsafe-option guard is meant to block.",
+    "oracle": "property",
+    "attacks": [
+      "a value containing a shell metacharacter (\";\", \"|\", \"&\", newline) passed where a single operand is expected",
+      "a value containing \"$(...)\" or a backtick command substitution fed into a command string",
+      "a value beginning with \"-\" that the program reads as an extra option rather than an operand",
+      "a ref, URL, or path encoding an additional command that the builder concatenates without separation"
+    ]
+  },
+  {
+    "id": "CWE-78",
+    "name": "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+    "where": "A function that runs an operating-system command or builds a shell command line or argv from outside input such as file names, URLs, branch names or keyword options.",
+    "invariant": "Each outside value reaches the process as exactly one argument with its text unchanged, and none is interpreted by a shell or by the program as an option (`--upload-pack=…`, `-o…`) unless the caller explicitly allowed it; inputs carrying such options are rejected.",
+    "oracle": "property",
+    "attacks": [
+      "a filename or URL containing a shell metacharacter or \"$(...)\"/backtick passed to a command line built by string concatenation",
+      "an input read by the program as an option such as \"--upload-pack=...\" or \"-o...\" rather than as a plain operand",
+      "a value with an embedded newline that becomes a second command line",
+      "a value beginning with \"-\" where the leading-dash guard is missing or bypassed by an alternate spelling"
+    ]
+  },
+  {
+    "id": "CWE-79",
+    "name": "Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')",
+    "where": "A function that renders, escapes, sanitizes or templates text into HTML, SVG, Markdown output or an HTML attribute.",
+    "invariant": "Outside text in its output is inert markup: no raw `<`, `>`, `\"` or `'` from the input survives unescaped where it could open a tag or attribute, and no `javascript:` URL, event-handler attribute or script element appears that the input did not get through the sanitizer's own allowlist.",
+    "oracle": "property",
+    "attacks": [
+      "a value containing \"<script>\" or a raw \"<\"/\">\" reflected into HTML body context",
+      "a value that breaks out of an HTML attribute with a quote plus an event-handler attribute ('\" onerror=...')",
+      "a \"javascript:\" URL supplied where an href or src is emitted",
+      "a sanitizer-allowlisted tag carrying a dangerous attribute or nested payload the allowlist does not strip",
+      "an encoded or mixed-case tag (\"<ScRiPt>\", \"&#x3c;script>\") that normalizes to live markup only after the escape step"
+    ]
+  },
+  {
+    "id": "CWE-88",
+    "name": "Improper Neutralization of Argument Delimiters in a Command ('Argument Injection')",
+    "where": "A function that turns keyword options, URLs, paths or refs into command-line arguments for another program, often with a guard that rejects unsafe options.",
+    "invariant": "No caller-supplied value, whatever its key or position, reaches the program as an option the guard is meant to block: a value starting with `-` is either rejected or passed after `--` as an operand, and short-key and long-key spellings of the same option are treated alike.",
+    "oracle": "property",
+    "attacks": [
+      "a value starting with \"-\" or \"--\" that the receiving program reads as an option rather than an operand",
+      "a long-key spelling of an unsafe option (\"--upload-pack=\") when the guard blocks only the short key, or vice versa",
+      "a value with an embedded space or \"=\" that splits into an option and its argument",
+      "a value that should be passed after \"--\" but is placed before it so the program still parses it as an option"
+    ]
+  },
+  {
+    "id": "CWE-89",
+    "name": "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
+    "where": "A function that builds or runs an SQL query, a where clause, an order-by, an identifier or a query-builder fragment from outside values.",
+    "invariant": "Outside values reach the database only as bound parameters or correctly quoted literals and identifiers: the generated SQL has the same statement structure for every input, and a value containing quotes, comments or semicolons changes no clause.",
+    "oracle": "property",
+    "attacks": [
+      "a value containing a single quote that closes the surrounding SQL string literal",
+      "a value supplied as an identifier (column or table name) where quoting or allowlisting is skipped",
+      "a value with an SQL comment (\"--\") or statement separator (\";\") in an order-by or where fragment",
+      "a value whose type is interpolated unquoted (a number field holding SQL text) into the statement"
+    ]
+  },
+  {
+    "id": "CWE-93",
+    "name": "Improper Neutralization of CRLF Sequences ('CRLF Injection')",
+    "where": "A function that builds or serializes a line-oriented protocol message (an HTTP request or response, a mail header, a log line) from fields such as a method, version, reason phrase or header value.",
+    "invariant": "No field it accepts contains CR or LF: a value with `\\r` or `\\n` is rejected, so the serialized message has exactly the lines the fields describe.",
+    "oracle": "property",
+    "attacks": [
+      "a field value containing a bare \"\\r\" or \"\\n\" where a single line is serialized",
+      "a value with \"\\r\\n\" followed by text that becomes an injected extra line in the message",
+      "a value with an isolated CR or isolated LF that one serializer treats as a line break",
+      "a reason-phrase or method field holding a control character that splits the status line"
+    ]
+  },
+  {
+    "id": "CWE-94",
+    "name": "Improper Control of Generation of Code ('Code Injection')",
+    "where": "A function that generates and evaluates source code (a compiled template, an expression, a generated function) using outside input such as template options, variable names or expressions.",
+    "invariant": "Outside input reaches the generated code only as data: a value carrying quotes, newlines, comments or code in an option or name is rejected or escaped, and evaluating the result never runs code the input supplied.",
+    "oracle": "property",
+    "attacks": [
+      "a template option or variable name containing a quote and code that closes a generated string literal and adds a statement",
+      "a value with a newline plus injected source that lands in the generated function body",
+      "an expression input that references a global or constructor the evaluator exposes",
+      "a comment-opening sequence in a value that comments out the rest of the generated line"
+    ]
+  },
+  {
+    "id": "CWE-113",
+    "name": "Improper Neutralization of CRLF Sequences in HTTP Headers ('HTTP Request/Response Splitting')",
+    "where": "A function that sets, appends or serializes an HTTP header name or value, a status line or a policy directive from caller-supplied text.",
+    "invariant": "Every header it emits is one line: a name or value containing CR, LF or another control character is rejected or encoded, so the serialized message has no header the caller did not set.",
+    "oracle": "property",
+    "attacks": [
+      "a header value containing \"\\r\\n\" followed by an injected header line",
+      "a header name containing a control character or separator that splits it into two headers",
+      "a value with a bare CR or bare LF that one hop treats as a line terminator",
+      "a status-line or policy-directive field holding an embedded newline"
+    ]
+  },
+  {
+    "id": "CWE-119",
+    "name": "Improper Restriction of Operations within the Bounds of a Memory Buffer",
+    "where": "Native code (C, C++, unsafe Rust, or an extension module) that reads or writes a buffer with lengths, offsets or indices derived from its input.",
+    "invariant": "Every read and write stays inside the buffer it belongs to, for every input length and offset; malformed input is reported as an error rather than reaching memory outside the buffer.",
+    "oracle": "crash",
+    "languages": [
+      "c",
+      "cpp",
+      "rust",
+      "ruby",
+      "python"
+    ],
+    "attacks": [
+      "an input whose declared field length exceeds the bytes actually present, driving a read or write past the buffer",
+      "an offset or index derived from input set at the buffer end and one past it (len, len+1)",
+      "a length value at a 16/32-bit boundary (65535, 65536, 2^31) that wraps when used to size or index",
+      "an empty or zero-length field where the code assumes at least one element, causing an underread",
+      "a declared size far larger than the buffer (2x capacity) copied without a remaining-space check"
+    ]
+  },
+  {
+    "id": "CWE-120",
+    "name": "Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')",
+    "where": "Native code that copies input bytes, a string or a decoded field into a fixed or preallocated buffer.",
+    "invariant": "It copies no more bytes than the destination holds: input longer than the buffer is truncated by contract or rejected with an error, never written past the end.",
+    "oracle": "crash",
+    "languages": [
+      "c",
+      "cpp",
+      "rust",
+      "ruby",
+      "python"
+    ],
+    "attacks": [
+      "an input string exactly the destination size, one byte longer, and far longer, with no room for a terminator",
+      "a decoded field whose expanded length exceeds the fixed destination",
+      "an input missing its NUL terminator so the copy runs past the source and destination",
+      "a length prefix that declares fewer bytes than the data that follows"
+    ]
+  },
+  {
+    "id": "CWE-121",
+    "name": "Stack-based Buffer Overflow",
+    "where": "Native code that writes parsed or formatted input into a local fixed-size array.",
+    "invariant": "No input, however long or oddly formed, writes past the end of a stack array; overlong fields are rejected or truncated.",
+    "oracle": "crash",
+    "languages": [
+      "c",
+      "cpp",
+      "rust",
+      "ruby",
+      "python"
+    ],
+    "attacks": [
+      "a parsed field longer than the local array (len, len+1, 2x len)",
+      "a formatted value whose rendered width exceeds the stack buffer",
+      "an input with no delimiter so a copy loop never stops before the array end",
+      "a count field that drives writes past the end of a fixed stack array"
+    ]
+  },
+  {
+    "id": "CWE-122",
+    "name": "Heap-based Buffer Overflow",
+    "where": "Native code that grows, fills or encodes into a heap buffer whose capacity is computed from the input or from the bytes written so far.",
+    "invariant": "Every write lands inside the allocated capacity: capacity checks compare against the space remaining, not the total, and the buffer is grown before any write that would not fit.",
+    "oracle": "crash",
+    "languages": [
+      "c",
+      "cpp",
+      "rust",
+      "ruby",
+      "python"
+    ],
+    "attacks": [
+      "an input that grows the buffer to exactly capacity then writes one more element without a grow",
+      "a capacity check against total rather than remaining space, with an input that fills the remainder and overflows",
+      "an encoded form longer than its source (escape expansion) written into a buffer sized from the source length",
+      "a length near the reallocation growth boundary that the size check compares wrongly"
+    ]
+  },
+  {
+    "id": "CWE-124",
+    "name": "Buffer Underwrite ('Buffer Underflow')",
+    "where": "Native code that walks backwards through a buffer, or computes an index by subtracting from a length or pointer derived from the input.",
+    "invariant": "No index or pointer it writes through falls before the start of its buffer, including for empty input and for lengths smaller than the amount subtracted.",
+    "oracle": "crash",
+    "languages": [
+      "c",
+      "cpp",
+      "rust",
+      "ruby",
+      "python"
+    ],
+    "attacks": [
+      "an empty input where the code subtracts a fixed amount from a length to index backwards",
+      "a length smaller than the amount subtracted, producing a negative index",
+      "an input that makes a reverse walk start before position zero",
+      "a prefix-trim on a value shorter than the prefix, underflowing the pointer"
+    ]
+  },
+  {
+    "id": "CWE-125",
+    "name": "Out-of-bounds Read",
+    "where": "A parser or decoder that reads bytes, characters or elements at offsets and lengths taken from the input (a header, a length prefix, a table index).",
+    "invariant": "It never reads past the end of its input or of a table: a declared length or offset beyond the data is reported as an error, not followed (in a memory-safe language, not turned into an index-out-of-range panic).",
+    "oracle": "crash",
+    "attacks": [
+      "a declared length or offset in a header that points past the end of the supplied data",
+      "a table or array index taken from input set at and past the table size (size, size+1)",
+      "a truncated input where the parser reads a fixed number of bytes it assumes are present",
+      "a length field at a 16/32-bit boundary (65535, 65536) that exceeds the remaining input"
+    ]
+  },
+  {
+    "id": "CWE-129",
+    "name": "Improper Validation of Array Index",
+    "where": "A function that converts outside input (a column name, a cell reference, an offset, a position) into an array or slice index.",
+    "invariant": "Every index it returns or uses is inside the valid range for its collection; an input that maps outside it is rejected with an error rather than returned as a value that later indexes out of range.",
+    "oracle": "property",
+    "attacks": [
+      "an input that maps to an index equal to the collection length and one past it",
+      "a negative index derived from a signed input (a cell or column reference parsed as negative)",
+      "an index at a 32-bit boundary (2^31) that wraps to a different slot",
+      "a column or position name that resolves outside the valid range rather than being rejected"
+    ]
+  },
+  {
+    "id": "CWE-131",
+    "name": "Incorrect Calculation of Buffer Size",
+    "where": "Native code that computes how much to allocate or reserve from input lengths, escape expansions or element counts before writing.",
+    "invariant": "The size it reserves is at least what it then writes for every input, including inputs whose encoded form is longer than the source and lengths near a growth boundary.",
+    "oracle": "crash",
+    "languages": [
+      "c",
+      "cpp",
+      "rust",
+      "ruby",
+      "python"
+    ],
+    "attacks": [
+      "an input whose encoded form is longer than its source (every character escaped) so a source-length allocation underfits",
+      "an element count at a growth boundary (near a power of two) where the size multiply rounds wrong",
+      "a count and element size whose product overflows the size type, yielding a small allocation",
+      "an empty input where the size calculation reserves zero but the code still writes a header"
+    ]
+  },
+  {
+    "id": "CWE-178",
+    "name": "Improper Handling of Case Sensitivity",
+    "where": "A function that compares a name, extension, header, scheme or host against an allowlist or denylist, where the thing it protects treats different letter cases as the same.",
+    "invariant": "Inputs that differ only in letter case get the same decision: if `shell.php` is denied, `shell.PHP` and `Shell.Php` are denied too.",
+    "oracle": "property",
+    "attacks": [
+      "an allowlisted or denylisted name in a different letter case (\"shell.PHP\", \"Shell.Php\") than the rule",
+      "a mixed-case scheme or host (\"HtTp://\", \"EXAMPLE.com\") matched against a lowercase rule",
+      "a denied extension with an uppercased final segment where the check folds only part of the string",
+      "a header name in unexpected case against a case-sensitive comparison"
+    ]
+  },
+  {
+    "id": "CWE-180",
+    "name": "Incorrect Behavior Order: Validate Before Canonicalize",
+    "where": "A function that checks a path, host, encoded value or token segment and then decodes, normalizes or resolves it (or hands it to code that does).",
+    "invariant": "The decision is made on the canonical form: two inputs that canonicalize to the same value get the same decision, and a non-canonical spelling (percent-escapes, numeric host forms, lenient base64, `..` segments, links) is either rejected or checked after canonicalization.",
+    "oracle": "property",
+    "attacks": [
+      "a percent-encoded path (\"%2e%2e%2f\") that passes the check and decodes to \"..\" afterward",
+      "a host in a numeric or alternate form that normalizes to a blocked address only after validation",
+      "a token segment with lenient base64 padding that validates then canonicalizes to a different value",
+      "two inputs, one canonical and one not, that canonicalize to the same value but get different decisions"
+    ]
+  },
+  {
+    "id": "CWE-187",
+    "name": "Partial String Comparison",
+    "where": "A function that decides whether a path, host, name or claim equals or lies under a configured value by comparing strings.",
+    "invariant": "An exact match means equal, and a prefix match respects segment boundaries: `/css` matches `/css` and `/css/x` but never `/css-secret.txt`, and an exact rule never accepts a value that merely starts with it.",
+    "oracle": "property",
+    "attacks": [
+      "a value that merely starts with an exact rule but continues (\"/css-secret.txt\" against rule \"/css\")",
+      "a prefix rule matched against a value that shares the prefix but crosses no segment boundary (\"/cssX\")",
+      "an expected string that is a proper prefix of the input where equality was intended",
+      "a claim or host equal to the expected value plus a trailing character the comparison ignores"
+    ]
+  },
+  {
+    "id": "CWE-190",
+    "name": "Integer Overflow or Wraparound",
+    "where": "A function that computes a size, count, offset, index or numeric value from input with arithmetic on fixed-width integers.",
+    "invariant": "Its arithmetic result is the mathematically correct value or an error: an input whose true result does not fit the integer type is rejected, never returned or used as a wrapped value.",
+    "oracle": "property",
+    "attacks": [
+      "a count or length at the integer type's max, max-1, and max+1 (2^31-1, 2^31, 2^32-1)",
+      "two input lengths whose sum overflows the width, producing a small or negative total",
+      "a multiply of count by element size that wraps to a smaller value",
+      "a value exactly at a 16/32-bit boundary (65535, 65536, 65537) used in arithmetic"
+    ]
+  },
+  {
+    "id": "CWE-200",
+    "name": "Exposure of Sensitive Information to an Unauthorized Actor",
+    "where": "A function that serves, reads or serializes data subject to a visibility rule: a static-file root, an own-properties-only accessor, a field filter or a redaction step.",
+    "invariant": "Its result contains only what the visibility rule allows for that input: no file outside the configured URLs, no inherited or hidden property, no field marked private.",
+    "oracle": "property",
+    "attacks": [
+      "a path that resolves to a file just outside the configured static root (via \"..\" or a sibling-prefix name)",
+      "an accessor key naming an inherited or prototype property rather than an own property",
+      "a field marked private requested through an alternate spelling the filter does not cover",
+      "a request for a hidden file or dotfile name the visibility rule should exclude"
+    ]
+  },
+  {
+    "id": "CWE-269",
+    "name": "Improper Privilege Management",
+    "where": "A function that expands or applies a policy of allowed and denied capabilities (modules, builtins, roles, permissions), including wildcards and negative entries.",
+    "invariant": "Every capability the policy denies stays denied however it is spelled (with or without a `node:` prefix, case or alias), and a wildcard never grants something an explicit deny entry removes.",
+    "oracle": "property",
+    "attacks": [
+      "a denied capability spelled with or without a \"node:\" prefix where the deny lists only one form",
+      "a capability in a different case or via an alias that the deny entry does not normalize",
+      "a wildcard grant combined with an input the explicit deny should still remove",
+      "a negated deny entry ordered after a broad allow so the allow wins"
+    ]
+  },
+  {
+    "id": "CWE-284",
+    "name": "Improper Access Control",
+    "where": "A function that decides whether a caller, module, path or request may use a resource, from a configured policy.",
+    "invariant": "It grants access exactly when the policy allows it: for every resource the policy denies, every spelling of a request for it is refused.",
+    "oracle": "property",
+    "attacks": [
+      "a request for a denied resource spelled with an alternate separator or trailing slash",
+      "a denied path reached through a parent or \"..\" segment that the policy does not canonicalize",
+      "a case-folded spelling of a denied name against a case-sensitive deny",
+      "a resource name that is a prefix of an allowed entry but names a different, restricted resource"
+    ]
+  },
+  {
+    "id": "CWE-287",
+    "name": "Improper Authentication",
+    "where": "A function that verifies a token, signature, password, session or claim set and reports whether the caller is who it says.",
+    "invariant": "It succeeds only for credentials that verify against the configured key and expected claims: an empty or missing key, a claim of the wrong type, an unexpected audience form or a malformed credential makes it fail, never pass by default.",
+    "oracle": "property",
+    "attacks": [
+      "a credential with an empty or absent key/MAC where a configured key is expected",
+      "a claim of the wrong JSON type (an array or object where a string is expected) read as valid",
+      "an audience or issuer in an unexpected form (array vs string) accepted by default",
+      "a malformed credential missing a required segment that passes instead of failing closed"
+    ]
+  },
+  {
+    "id": "CWE-290",
+    "name": "Authentication Bypass by Spoofing",
+    "where": "A function that identifies a client or peer from data the client controls: a forwarded-for header, a Host or Origin header, a source address, a certificate name or a sender field.",
+    "invariant": "The identity it reports comes only from sources it is configured to trust: a client-supplied header or field cannot make it report a trusted address, origin or name the connection does not have.",
+    "oracle": "property",
+    "attacks": [
+      "a client-supplied X-Forwarded-For or Host header asserting a trusted address the connection lacks",
+      "an Origin or Referer header set by the client to an allowed value where the trust source is wrong",
+      "a sender or certificate-name field controlled by the client claiming a trusted identity",
+      "a forwarded header with multiple values where the code trusts the client-chosen one"
+    ]
+  },
+  {
+    "id": "CWE-295",
+    "name": "Improper Certificate Validation",
+    "where": "A function that validates a TLS certificate, chain, hostname or pin, or builds the client configuration that does.",
+    "invariant": "It accepts a certificate only when the chain leads to a trusted root, every certificate is valid for its use and dates, and the name matches the host requested under the wildcard rules; any other certificate is rejected.",
+    "oracle": "property",
+    "attacks": [
+      "a certificate whose subject/SAN does not match the requested host, with the host as a substring of the cert name",
+      "a certificate chaining to an untrusted or self-signed root",
+      "an expired or not-yet-valid certificate presented where date checks should reject it",
+      "a wildcard cert name applied across a label boundary (\"*.example.com\" for \"a.b.example.com\")",
+      "a host that is a substring or prefix of the certificate name (\"evil-example.com\" vs \"example.com\")"
+    ]
+  },
+  {
+    "id": "CWE-326",
+    "name": "Inadequate Encryption Strength",
+    "where": "A function that creates, imports or uses a key for signing, MAC or encryption.",
+    "invariant": "It refuses keys too weak for the algorithm: an empty key, a key shorter than the algorithm's minimum or a key of the wrong type is rejected rather than used to sign or verify.",
+    "oracle": "property",
+    "attacks": [
+      "an empty key supplied for signing or MAC",
+      "a key shorter than the algorithm's documented minimum length",
+      "a key of the wrong type for the chosen algorithm (symmetric bytes for an asymmetric alg)",
+      "a trivially weak key (all zeros, or a single repeated byte)"
+    ]
+  },
+  {
+    "id": "CWE-327",
+    "name": "Use of a Broken or Risky Cryptographic Algorithm",
+    "where": "A function that picks a signing, hashing or encryption algorithm from the input (a token header's alg, a key type) or from configuration and applies it to a key.",
+    "invariant": "It uses only algorithms the caller allowed, with a key of the matching kind: a token asking for `none` or for HMAC with a public key, or an algorithm outside the allowed list, is rejected.",
+    "oracle": "property",
+    "attacks": [
+      "a token header requesting \"alg\": \"none\" (or \"None\"/\"NONE\") where a signed algorithm is expected",
+      "a token requesting HMAC (HS256) verified with the bytes of a public key of any type (RSA, EC, Ed25519) in any encoding (PEM, DER, OpenSSH, JWK): asymmetric-to-HMAC confusion",
+      "an algorithm outside the caller's allowed list named in the input",
+      "a key type that does not match the requested algorithm, applied anyway"
+    ]
+  },
+  {
+    "id": "CWE-346",
+    "name": "Origin Validation Error",
+    "where": "A function that decides whether a request, cookie or message comes from or belongs to an allowed origin, domain or host.",
+    "invariant": "It accepts only origins the configuration allows, compared on their canonical form: a cookie domain or origin matches exactly the hosts the rules give it, and a non-canonical spelling never widens the match.",
+    "oracle": "property",
+    "attacks": [
+      "an Origin whose host is the allowed host plus a suffix (\"example.com.evil.com\")",
+      "an Origin where the allowed host is a substring (\"evilexample.com\" for \"example.com\")",
+      "a cookie domain set one label broader than configured so it widens the match",
+      "a non-canonical origin spelling (trailing dot, uppercase, default port present or absent) matched leniently"
+    ]
+  },
+  {
+    "id": "CWE-347",
+    "name": "Improper Verification of Cryptographic Signature",
+    "where": "A function that verifies a signed token, message, package or document against a key and returns its payload or a verdict.",
+    "invariant": "It returns a payload or success only when the signature verifies over exactly the bytes returned, with the expected key and an allowed algorithm; a modified payload, a stripped or unsigned signature, or a signature over other content is rejected.",
+    "oracle": "property",
+    "attacks": [
+      "a token whose header algorithm is \"none\" (or \"None\"/\"NONE\") with the signature removed, passed where a signed token is expected",
+      "a token signed with HMAC using the bytes of the verifier's PUBLIC key as the shared secret, for every key type (RSA, EC, Ed25519) and every encoding the library accepts (PEM, DER, OpenSSH, JWK): asymmetric-to-HMAC key confusion",
+      "a valid token with its last signature byte flipped",
+      "a token with a valid signature over a different key id (kid) than the one the caller trusts",
+      "a token whose payload is modified after signing so the signature covers different bytes than the ones returned"
+    ]
+  },
+  {
+    "id": "CWE-352",
+    "name": "Cross-Site Request Forgery (CSRF)",
+    "where": "A function or middleware that decides whether a state-changing request carries a valid anti-forgery token or comes from the same origin.",
+    "invariant": "Every unsafe-method request it lets through has a valid token and, where it checks one, a same-origin Origin or Referer, whatever the request's scheme or URL fields hold; a cross-origin request is rejected.",
+    "oracle": "property",
+    "attacks": [
+      "an unsafe-method request with the anti-forgery token missing or empty",
+      "a request with a token that is a prefix or substring of the valid one where equality was intended",
+      "a cross-origin request whose Origin host is the allowed host as a substring or suffix",
+      "a request with a forged Referer whose path matches but host does not"
+    ]
+  },
+  {
+    "id": "CWE-384",
+    "name": "Session Fixation",
+    "where": "A function that creates, adopts or attaches a session or session cookie, especially across a login or privilege change.",
+    "invariant": "A session id supplied by the client is never kept across authentication, and a session cookie is only sent to the hosts it was set for; after login the session id differs from the one before.",
+    "oracle": "property",
+    "attacks": [
+      "a client-supplied session id presented at login and kept unchanged afterward",
+      "a session id set before authentication reused as the post-login id",
+      "a session cookie with a domain broader than the host it was set for",
+      "a fixed, predictable session id value accepted and adopted"
+    ]
+  },
+  {
+    "id": "CWE-400",
+    "name": "Uncontrolled Resource Consumption",
+    "where": "A parser, decoder, matcher or converter that processes input whose size, nesting or repetition the caller does not control.",
+    "invariant": "Its time and memory grow at most linearly (or as its documentation states) with input size; no input makes its cost grow quadratically or faster, and limits it documents are enforced.",
+    "oracle": "hang",
+    "attacks": [
+      "an input with a declared count or nesting far larger than its byte size (deep nesting in few bytes)",
+      "repeated or self-referential structure that forces super-linear work as size grows",
+      "an input doubling in size that makes cost grow quadratically (rescanning a growing buffer)",
+      "a count field that drives allocation disproportionate to the bytes supplied"
+    ]
+  },
+  {
+    "id": "CWE-407",
+    "name": "Inefficient Algorithmic Complexity",
+    "where": "A function that builds a result incrementally from its input: concatenating sequences, rescanning a growing buffer, inserting into a collection, re-tokenizing per line.",
+    "invariant": "Doubling the input at most roughly doubles its running time: no input makes it rescan or copy what it has already processed for each new piece.",
+    "oracle": "hang",
+    "attacks": [
+      "an input built so each new element forces a rescan or recopy of all prior elements (quadratic concatenation)",
+      "many short lines or tokens that make a per-line re-tokenize cost grow with the square of the count",
+      "an input whose size doubles and whose running time more than doubles",
+      "repeated insertions that collide into one hash bucket, degrading to linear cost per operation"
+    ]
+  },
+  {
+    "id": "CWE-409",
+    "name": "Improper Handling of Highly Compressed Data (Data Amplification)",
+    "where": "A function that decompresses, inflates or expands input (gzip, zip, zstd, a compressed archive entry, a compressed request body).",
+    "invariant": "The output it produces stays within the size limit it is given or documents, and where it has none, a small input cannot make it produce or allocate output thousands of times the input's own size: input that would expand beyond that is rejected or truncated before the excess is produced. A check compares the output's size with the input's.",
+    "oracle": "property",
+    "attacks": [
+      "a highly compressed input (a zip bomb) whose inflated size vastly exceeds its compressed bytes and the limit",
+      "nested compression layers that expand multiplicatively past the documented cap",
+      "a single compressed entry declaring a huge uncompressed size against the limit",
+      "a compressed stream of one repeated byte that inflates beyond the output budget"
+    ]
+  },
+  {
+    "id": "CWE-416",
+    "name": "Use After Free",
+    "where": "A stateful native object (a streaming parser, unpacker or decoder) that can be reused after an error or reset.",
+    "invariant": "After any call raises, the object either refuses further use or behaves as freshly reset: later calls never read memory released or invalidated by the failed call.",
+    "oracle": "crash",
+    "languages": [
+      "c",
+      "cpp",
+      "rust",
+      "ruby",
+      "python"
+    ],
+    "attacks": [
+      "a call that triggers an error, then a second call on the same object that reads freed state",
+      "a reset or close followed by a use of the object",
+      "a streaming decoder fed a malformed chunk that frees internal state, then given more input",
+      "an empty or truncated first input that invalidates the object followed by a normal call"
+    ]
+  },
+  {
+    "id": "CWE-425",
+    "name": "Direct Request ('Forced Browsing')",
+    "where": "A function that reaches a property, route or resource named by an outside path, where some names are meant to be off limits.",
+    "invariant": "A path naming a restricted entry (an internal property, a prototype, an unlisted route) is refused, and reaching it by another spelling or through a parent path gets the same refusal.",
+    "oracle": "property",
+    "attacks": [
+      "a path naming a restricted route or property reached directly rather than through the listed entry",
+      "a restricted name reached by an alternate spelling (case, separator, encoding)",
+      "a prototype or internal property named through a parent path the guard misses",
+      "an unlisted sibling of an allowed resource requested by guessing its name"
+    ]
+  },
+  {
+    "id": "CWE-434",
+    "name": "Unrestricted Upload of File with Dangerous Type",
+    "where": "A function that accepts an uploaded file or validates its name, extension or content type before saving it.",
+    "invariant": "Every file it accepts has an allowed extension and an allowed content type, checked on the name it will be saved under (case-insensitively, after any rename or override); a denied extension is rejected even when the content looks harmless.",
+    "oracle": "property",
+    "attacks": [
+      "a filename with a denied extension in a different case (\".PHP\", \".Php\")",
+      "a double extension (\"shell.php.jpg\" or \"shell.jpg.php\") where only one segment is checked",
+      "a filename whose extension is set by a rename or override after the check runs",
+      "a denied extension with a trailing dot, space, or NUL that the filesystem strips (\"shell.php.\")",
+      "a content type that looks allowed while the saved name carries a denied extension"
+    ]
+  },
+  {
+    "id": "CWE-436",
+    "name": "Interpretation Conflict",
+    "where": "A parser of a format other software also parses (a URI, a host, an email header, an archive, an HTTP message), whose result callers trust to match what the other software will do.",
+    "invariant": "For every input it accepts, it extracts the same parts the format's standard (or the reference implementation it names) would; an input the two would read differently is rejected rather than parsed one way here and another way downstream.",
+    "oracle": "property",
+    "attacks": [
+      "a URI with embedded credentials or an unusual authority that this parser and a downstream parser split differently (\"http://a@b/\")",
+      "an archive entry with conflicting metadata (local vs central directory) the two readers resolve differently",
+      "an email or HTTP header with obsolete folding or duplicate fields read one way here and another downstream",
+      "a host field with a trailing dot, embedded port, or backslash that normalizes differently downstream"
+    ]
+  },
+  {
+    "id": "CWE-444",
+    "name": "Inconsistent Interpretation of HTTP Requests ('HTTP Request/Response Smuggling')",
+    "where": "A function that parses HTTP message framing: Content-Length, Transfer-Encoding, chunk sizes, header lines and line endings.",
+    "invariant": "It finds the same message boundaries a standard-conforming parser would: duplicate or conflicting length headers, invalid chunk sizes, bare CR or LF line endings and obsolete line folding are rejected, never resolved in a way another hop might not.",
+    "oracle": "property",
+    "attacks": [
+      "a request carrying both Content-Length and Transfer-Encoding so two hops frame it differently",
+      "duplicate Content-Length headers with differing values",
+      "a chunk size that is invalid, negative, or carries leading or trailing junk",
+      "bare-CR or bare-LF line endings where CRLF is required",
+      "obsolete line folding in a header that one parser unfolds and another rejects"
+    ]
+  },
+  {
+    "id": "CWE-471",
+    "name": "Modification of Assumed-Immutable Data (MAID)",
+    "where": "A function that writes into an object at a path, key or attribute name taken from outside input.",
+    "invariant": "It modifies only the target object's own data: shared objects (prototypes, classes, built-in functions, module globals) are unchanged after any call.",
+    "oracle": "property",
+    "attacks": [
+      "a write path whose key is \"__proto__\", \"constructor\", or \"prototype\" reaching a shared object",
+      "a key naming an inherited method or built-in that the write mutates",
+      "a path that traverses out of the target object's own data into a module global",
+      "a numeric or dunder key that aliases an immutable internal field"
+    ]
+  },
+  {
+    "id": "CWE-476",
+    "name": "NULL Pointer Dereference",
+    "where": "A function that follows optional fields, lookups or parse results from its input without a guaranteed value (C pointers, Go nil maps and pointers, nil interfaces).",
+    "invariant": "Missing or malformed parts of the input produce an error result, never a dereference of a null or nil value (a segfault or nil-pointer panic).",
+    "oracle": "crash",
+    "attacks": [
+      "an input with a required field omitted so a later lookup returns null/nil and is dereferenced",
+      "a parse that fails and returns a null result the code then follows without a check",
+      "an empty collection or map accessed by a key, returning nil and dereferenced",
+      "a malformed optional field that yields a nil interface or pointer used downstream"
+    ]
+  },
+  {
+    "id": "CWE-502",
+    "name": "Deserialization of Untrusted Data",
+    "where": "A function that deserializes or loads objects from bytes or text (YAML, pickle, Marshal, Java serialization, polymorphic JSON) that may come from outside.",
+    "invariant": "Loading in its safe mode produces only plain data (or the types the caller allowlisted): input naming another class, constructor or callable is rejected, and no code from the input runs while loading.",
+    "oracle": "property",
+    "attacks": [
+      "a serialized object naming a dangerous gadget class or constructor (a type that runs code on load)",
+      "an input with a \"__proto__\"/\"constructor.prototype\" key in a parsed object (prototype pollution via load)",
+      "a polymorphic payload declaring a type outside the caller's allowlist",
+      "a tag or type directive (\"!!python/object\", \"!ruby/object\") requesting object construction in safe mode"
+    ]
+  },
+  {
+    "id": "CWE-601",
+    "name": "URL Redirection to Untrusted Site ('Open Redirect')",
+    "where": "A function that validates or builds a redirect target, return URL or next parameter from outside input.",
+    "invariant": "Every URL it returns as safe stays on an allowed host: after resolution against the current URL (including `//host`, backslashes, embedded credentials and encoded characters), its host is one the configuration allows, otherwise it is rejected or replaced.",
+    "oracle": "property",
+    "attacks": [
+      "a target of the form \"//evil.com\" that resolves to an external host",
+      "a target with a backslash (\"/\\evil.com\" or \"\\\\evil.com\") that browsers normalize to a host change",
+      "a target with embedded credentials (\"https://allowed@evil.com\") where the real host is the suffix",
+      "a target whose host is the allowed host as a substring or subdomain prefix (\"allowed.evil.com\")",
+      "an encoded or whitespace-obscured scheme/host that resolves off-host only after decoding"
+    ]
+  },
+  {
+    "id": "CWE-611",
+    "name": "Improper Restriction of XML External Entity Reference",
+    "where": "A function that parses XML, SVG or another XML-based document from outside input.",
+    "invariant": "Parsing never reads a file, URL or resource named in the document: external entities and external DTDs are refused or left unexpanded, so the result contains only text present in the input.",
+    "oracle": "property",
+    "attacks": [
+      "an XML document with a DOCTYPE declaring an external entity pointing at a file or URL (classic XXE)",
+      "an entity referencing an external DTD whose content the parser fetches",
+      "a parameter entity in the DTD that pulls in an external resource",
+      "an SVG or XML-based document with an external entity in a text node"
+    ]
+  },
+  {
+    "id": "CWE-674",
+    "name": "Uncontrolled Recursion",
+    "where": "A recursive parser, walker, matcher or serializer whose recursion depth follows the nesting of its input.",
+    "invariant": "Deeply nested input is rejected with an error at a documented depth (or handled iteratively), never by exhausting the stack.",
+    "oracle": "crash",
+    "attacks": [
+      "a deeply nested structure (thousands of nested brackets or objects) that drives recursion to stack exhaustion",
+      "an input nested just past the documented depth limit (limit, limit+1)",
+      "a self-referential or cyclic structure that recurses without reaching a base case",
+      "nesting far past the limit (2x or more) to force a stack overflow rather than a clean error"
+    ]
+  },
+  {
+    "id": "CWE-697",
+    "name": "Incorrect Comparison",
+    "where": "A function that compares a claim, address, range, version or pattern against an expected value to make a security decision.",
+    "invariant": "The comparison means what its documentation says: an expected string is compared for equality (not membership or substring), a range covers its full prefix length, and every input that differs from the expected value is treated as different.",
+    "oracle": "property",
+    "attacks": [
+      "an expected string compared where the input merely contains it as a substring (iss \"a\" vs \"a.evil.com\")",
+      "a value that differs from the expected only in case or a trailing separator the comparison folds",
+      "a range or prefix check where the input shares a prefix but lies outside the intended range",
+      "a version or address compared with the wrong operator (membership instead of equality)"
+    ]
+  },
+  {
+    "id": "CWE-755",
+    "name": "Improper Handling of Exceptional Conditions",
+    "where": "A function that converts, type-asserts or looks up a value from input and must decide what an unexpected type, missing value or conversion error means.",
+    "invariant": "An unexpected type, a failed conversion or a missing value produces an error or a failing verdict, never the same answer as a valid input (an empty string, zero or `valid`).",
+    "oracle": "property",
+    "attacks": [
+      "an input of an unexpected type that makes a conversion fail and return a default that reads as valid",
+      "a missing value where the lookup returns an empty string, zero, or \"valid\" instead of an error",
+      "a conversion error swallowed so the function returns the same answer as a good input",
+      "a malformed value that triggers an exception path the function treats as success"
+    ]
+  },
+  {
+    "id": "CWE-770",
+    "name": "Allocation of Resources Without Limits or Throttling",
+    "where": "A function that allocates buffers, collections, goroutines or connections sized by counts or lengths read from its input.",
+    "invariant": "What it allocates grows with the bytes actually supplied, not with a count or length the input merely declares, and stays within the limits it is configured with.",
+    "oracle": "hang",
+    "attacks": [
+      "a declared count or length far larger than the bytes actually supplied, driving a huge allocation",
+      "a length prefix that disagrees with the real data length, trusted for sizing",
+      "a count field at a boundary (2^31, 65536) that allocates disproportionately",
+      "many small declared elements that each reserve capacity beyond the input size"
+    ]
+  },
+  {
+    "id": "CWE-776",
+    "name": "Improper Restriction of Recursive Entity References in DTDs ('XML Entity Expansion')",
+    "where": "A function that parses XML or another format with entity, alias or anchor expansion (DTD entities, YAML aliases).",
+    "invariant": "Expansion is bounded: the expanded output is at most a fixed multiple of the input size, and nested or repeated references beyond that are rejected.",
+    "oracle": "hang",
+    "attacks": [
+      "an XML DOCTYPE with nested entity definitions that expand exponentially (billion-laughs)",
+      "a chain of entities each referencing the previous many times, expanding past the size multiple",
+      "YAML aliases or anchors referenced repeatedly to amplify output size",
+      "a single entity referenced a very large number of times in the document body"
+    ]
+  },
+  {
+    "id": "CWE-787",
+    "name": "Out-of-bounds Write",
+    "where": "Native code that encodes, copies, formats or transforms input into an output buffer.",
+    "invariant": "Every byte it writes lands inside the output buffer, for every input length and content; when the output would not fit, it grows the buffer or fails.",
+    "oracle": "crash",
+    "languages": [
+      "c",
+      "cpp",
+      "rust",
+      "ruby",
+      "python"
+    ],
+    "attacks": [
+      "an input whose encoded or transformed length exceeds the output buffer, written without a grow",
+      "a length or index from input set at the buffer end and one past it (len, len+1)",
+      "a declared length that disagrees with the actual data so the writer overruns the output",
+      "a value at a 16/32-bit boundary (65536, 2^31) used as a write offset"
+    ]
+  },
+  {
+    "id": "CWE-835",
+    "name": "Loop with Unreachable Exit Condition ('Infinite Loop')",
+    "where": "A parser, scanner or iterator whose loop advances by an amount computed from the input (a length field, a match, a skipped token).",
+    "invariant": "Every iteration consumes input or moves toward its end, so the call finishes for every input, including empty, truncated and zero-length fields.",
+    "oracle": "hang",
+    "attacks": [
+      "a length or skip field of zero where the loop advances by that amount, so it never progresses",
+      "a truncated input where the parser waits for bytes that never arrive without terminating",
+      "a match that consumes nothing each iteration (an empty match) keeping the loop in place",
+      "a back-reference or offset that points backward so the scanner never reaches the end"
+    ]
+  },
+  {
+    "id": "CWE-843",
+    "name": "Access of Resource Using Incompatible Type ('Type Confusion')",
+    "where": "A function that reads a field, header or value whose type or format is chosen by the input (a claim of the wrong JSON type, an override record, a tagged union).",
+    "invariant": "Each value is handled as the type it actually has: a field of an unexpected type is rejected rather than treated as absent or reinterpreted, and an override that changes a value's meaning is applied before the value is used.",
+    "oracle": "property",
+    "attacks": [
+      "a field holding a map or array where a scalar is expected, read as the wrong type",
+      "a claim of the wrong JSON type (a number where a string is expected) treated as absent or coerced",
+      "an override record whose type changes a value's meaning applied after the value is read",
+      "a tagged union with a tag that does not match its payload type"
+    ]
+  },
+  {
+    "id": "CWE-863",
+    "name": "Incorrect Authorization",
+    "where": "A function that decides whether a request, path, module or caller is allowed by an allowlist, route rule or policy.",
+    "invariant": "It allows exactly what the rule allows: a path or name allowed only because it shares a prefix, a case-folded form or an inherited property with an allowed entry is refused.",
+    "oracle": "property",
+    "attacks": [
+      "a path allowed only because it shares a prefix with an allowed entry (\"/admin\" vs \"/administrator-public\")",
+      "a name that matches an allowed entry after a case fold the policy should not do",
+      "an inherited or prototype property treated as an allowed own entry",
+      "a request whose spelling differs from the denied form by a trailing slash or separator yet names the same resource"
+    ]
+  },
+  {
+    "id": "CWE-915",
+    "name": "Improperly Controlled Modification of Dynamically-Determined Object Attributes",
+    "where": "A function that applies a patch, diff, merge, or mass assignment whose attribute paths or keys come from outside input.",
+    "invariant": "It sets only attributes the target object's data model exposes for writing: paths that traverse into dunder attributes, classes, prototypes, inherited methods or fields not on the allowlist are rejected.",
+    "oracle": "property",
+    "languages": [
+      "python",
+      "ruby",
+      "javascript",
+      "typescript",
+      "php"
+    ],
+    "attacks": [
+      "a patch key that is \"__proto__\", \"constructor\", or a dunder attribute reaching a class or prototype",
+      "a mass-assignment field not on the writable allowlist (an id, role, or internal flag)",
+      "a nested path that traverses into an inherited method or built-in",
+      "a key naming a dynamically-determined attribute outside the data model's writable set"
+    ]
+  },
+  {
+    "id": "CWE-918",
+    "name": "Server-Side Request Forgery (SSRF)",
+    "where": "A function that fetches a URL or connects to a host from outside input, or classifies an address as internal, loopback, link-local or private for an SSRF filter.",
+    "invariant": "It classifies every address by where a connection to it actually goes (IPv4-mapped and NAT64 IPv6, non-canonical numeric forms and full prefix ranges included), and it never connects to an address its filter should block.",
+    "oracle": "property",
+    "attacks": [
+      "a URL whose host is a loopback or internal address in a non-canonical numeric form (\"0x7f.1\", \"127.1\", decimal \"2130706433\")",
+      "an IPv4-mapped or NAT64 IPv6 address that routes internally but the filter checks only as IPv6",
+      "a hostname that resolves to a private or link-local range the filter should block",
+      "a URL that redirects, or uses a decimal/octal host, to an internal address after the check",
+      "an address at the edge of a blocked prefix range the filter trims to a narrower match"
+    ]
+  },
+  {
+    "id": "CWE-1321",
+    "name": "Improperly Controlled Modification of Object Prototype Attributes ('Prototype Pollution')",
+    "where": "A function that sets, merges, clones or patches a JavaScript object at a key or path from outside input.",
+    "invariant": "After any call, `Object.prototype` and other shared prototypes and built-in objects are unchanged: keys such as `__proto__`, `constructor` and `prototype`, and paths through inherited properties, are refused or treated as own data.",
+    "oracle": "property",
+    "languages": [
+      "javascript",
+      "typescript"
+    ],
+    "attacks": [
+      "a merge or set payload with a \"__proto__\" key reaching Object.prototype",
+      "a path \"constructor.prototype.<x>\" that pollutes a shared prototype",
+      "a nested object {\"__proto__\": {\"polluted\": ...}} parsed and merged",
+      "a key traversing an inherited property so the write lands on a built-in"
+    ]
+  },
+  {
+    "id": "CWE-1333",
+    "name": "Inefficient Regular Expression Complexity",
+    "where": "A function that matches outside input with a regular expression or wildcard pattern, or compiles a pattern from outside input.",
+    "invariant": "Matching time grows at most linearly with input length: no input of repeated characters or near-matches makes the matcher backtrack exponentially or polynomially.",
+    "oracle": "hang",
+    "attacks": [
+      "nested quantifiers with large repeat counts like a(b+)+c matched against \"abbbb...\" with no trailing c",
+      "a pattern built from outside input with \"{N}{N}{N}\"-style nested bounded repeats and large N",
+      "a long run of a single character that forces catastrophic backtracking against an alternation with overlapping branches",
+      "an input that is a near-match of an anchored pattern (matches the repeated part, fails the final literal) — the pattern STRUCTURE and repeat COUNTS, not merely a long input string"
+    ]
+  },
+  {
+    "id": "CWE-1336",
+    "name": "Improper Neutralization of Special Elements Used in a Template Engine",
+    "where": "A template engine's render or compile function, or its sandbox, that evaluates templates or expressions supplied by an outside author.",
+    "invariant": "A sandboxed render can reach only the values and methods the sandbox allows: no template, through property traversal, loops or filters, reaches restricted classes, reflection, deserializers or code execution.",
+    "oracle": "property",
+    "attacks": [
+      "a template value containing \"${...}\" or \"{{...}}\" syntax fed to a template evaluator",
+      "an expression that traverses an object's properties to reach a restricted class or constructor",
+      "a template using a loop or filter to reach reflection or a deserializer the sandbox should block",
+      "a property-access chain (\".__class__\", \".constructor\") that escapes the sandbox to code execution"
+    ]
+  },
+  {
+    "id": "CWE-1391",
+    "name": "Use of Weak Credentials",
+    "where": "A function that signs or verifies with a secret, key or password the caller provides.",
+    "invariant": "An empty, null or trivially weak secret is rejected for signing and verification; nothing verifies with a key anyone could guess.",
+    "oracle": "property",
+    "attacks": [
+      "an empty or null secret presented for signing or verification",
+      "a predictable or default secret (a published example key, \"secret\", all zeros)",
+      "a trivially short key anyone could brute-force",
+      "a key reused from a public or well-known value where a private secret is required"
+    ]
+  }
+]

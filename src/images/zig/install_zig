@@ -1,0 +1,25 @@
+#!/bin/bash -eu
+# install_zig <version>: installs Zig at /usr/local/zig (on PATH), replacing the one there, from ziglang.org's download index.
+# <version> is a release (0.14.1), a minor version (0.14: its newest release), master, or latest (the newest release).
+want=${1:?usage: install_zig <version>}
+arch=$(uname -m)
+read -r version url < <(curl -fsSL https://ziglang.org/download/index.json | python3 -c '
+import json, sys
+index, want, key = json.load(sys.stdin), sys.argv[1], sys.argv[2] + "-linux"
+num = lambda v: tuple(int(x) for x in v.split("-")[0].split(".")[:3])
+releases = sorted((v for v in index if v != "master" and key in index[v]), key=num, reverse=True)
+if want == "master":
+    pick, version = index["master"], index["master"]["version"]
+else:
+    match = [v for v in releases if want == "latest" or v == want or num(v)[:2] == num(want)[:2] and len(want.split(".")) == 2]
+    if not match:
+        sys.exit("no Zig release " + want + " for " + key + " (releases: " + ", ".join(releases[:8]) + ")")
+    pick, version = index[match[0]], match[0]
+print(version, pick[key]["tarball"])
+' "$want" "$arch")
+rm -rf /usr/local/zig /tmp/zig.tar.xz
+curl -fsSL "$url" -o /tmp/zig.tar.xz
+mkdir -p /usr/local/zig
+tar -xJf /tmp/zig.tar.xz -C /usr/local/zig --strip-components=1
+rm -f /tmp/zig.tar.xz
+echo "install_zig: Zig $version"

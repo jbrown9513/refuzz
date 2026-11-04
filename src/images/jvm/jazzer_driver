@@ -1,0 +1,16 @@
+#!/bin/bash -eu
+# OSS-Fuzz's jazzer_driver: runs Jazzer on --target_class with the class path in --cp and the JVM options in --jvm_args
+# (colon-separated); every other argument goes to Jazzer and libFuzzer. --agent_path, --asan and --ubsan are accepted and
+# ignored: Jazzer from Maven Central carries its own agent, and the JVM's code is not built with sanitizers.
+cp=""
+jvm=()
+args=()
+for a in "$@"; do
+  case "$a" in
+    --agent_path=*|--asan|--ubsan) ;;
+    --cp=*) cp="${a#--cp=}" ;;
+    --jvm_args=*) IFS=: read -ra more <<< "${a#--jvm_args=}"; jvm+=("${more[@]}") ;;
+    *) args+=("$a") ;;
+  esac
+done
+exec java ${jvm[@]+"${jvm[@]}"} -cp "/opt/refuzz/jazzer/lib/*${cp:+:$cp}" com.code_intelligence.jazzer.Jazzer ${args[@]+"${args[@]}"}

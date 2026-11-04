@@ -1,0 +1,77 @@
+#!/bin/bash -eu
+# refuzz's compile_dotnet_fuzzer (OSS-Fuzz has no C# helper): compile_dotnet_fuzzer <target.cs> <name> <class> [<assembly.dll>...]
+# builds the SharpFuzz target <class> (a static class with `Fuzz(ReadOnlySpan<byte>)` or `Fuzz(Stream)`) into $OUT/<name>:
+# a console project with the target, a Main handing Fuzz to SharpFuzz.Fuzzer.LibFuzzer.Run and a reference to every
+# assembly build.sh put in $OUT, published to $OUT/<name>.d; the named project assemblies there are instrumented by
+# SharpFuzz, and $OUT/<name> runs libfuzzer-dotnet on it with its arguments.
+target=$1 name=$2 class=$3
+shift 3
+work=$WORK/dotnet-$name
+rm -rf "$work" "$OUT/$name.d"
+mkdir -p "$work"
+cp "$target" "$work/Target.cs"
+framework=$(ls -d /usr/share/dotnet/shared/Microsoft.NETCore.App/*/ | sort -V | tail -n 1)
+refs=""
+for dll in "$OUT"/*.dll; do
+  [ -f "$dll" ] || continue
+  # An assembly the runtime has its own copy of is the runtime's.
+  [ -f "$framework$(basename "$dll")" ] && continue
+  refs="$refs    <Reference Include=\"$dll\" />
+"
+done
+cat > "$work/Fuzz.csproj" << CSPROJ
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Fuzz</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>\$(NoWarn);CS0105;CS0168;CS0219;CS1998;CS0618;CS0612;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;MSB3277</NoWarn>
+    <NuGetAudit>false</NuGetAudit>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpFuzz" Version="2.3.0" />
+$refs  </ItemGroup>
+</Project>
+CSPROJ
+cat > "$work/RefuzzNativeMain.cs" << MAIN
+using System;
+using System.IO;
+using System.Reflection;
+
+public static class RefuzzNativeMain
+{
+    delegate void SpanFuzz(ReadOnlySpan<byte> data);
+
+    public static void Main()
+    {
+        var type = typeof(RefuzzNativeMain).Assembly.GetType("$class", true);
+        var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+        var span = type.GetMethod("Fuzz", flags, null, new[] { typeof(ReadOnlySpan<byte>) }, null);
+        if (span != null)
+        {
+            var call = span.CreateDelegate<SpanFuzz>();
+            SharpFuzz.Fuzzer.LibFuzzer.Run(s => call(s));
+            return;
+        }
+        var stream = type.GetMethod("Fuzz", flags, null, new[] { typeof(Stream) }, null).CreateDelegate<Action<Stream>>();
+        SharpFuzz.Fuzzer.LibFuzzer.Run(s => { using var m = new MemoryStream(s.ToArray(), false); stream(m); });
+    }
+}
+MAIN
+dotnet publish "$work/Fuzz.csproj" -c Release -o "$OUT/$name.d" -nologo -v quiet -clp:NoSummary
+for assembly in "$@"; do
+  [ -f "$OUT/$name.d/$assembly" ] && sharpfuzz "$OUT/$name.d/$assembly"
+done
+cp /usr/local/bin/libfuzzer-dotnet "$OUT/libfuzzer-dotnet"
+cat > "$OUT/$name" << WRAPPER
+#!/bin/sh
+this_dir=\$(dirname "\$0")
+exec "\$this_dir/libfuzzer-dotnet" --target_path=dotnet --target_arg="\$this_dir/$name.d/Fuzz.dll" "\$@"
+WRAPPER
+chmod +x "$OUT/$name"

@@ -1,0 +1,24 @@
+{
+  "name": "refuzz",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "A fuzzer that writes its own harnesses, builds the project the way OSS-Fuzz does, and keeps improving from coverage",
+  "bin": {
+    "refuzz": "bin/refuzz.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "fuzz": "tsx src/cli.ts",
+    "reverify": "tsx src/reverify.ts",
+    "score": "tsx src/score.ts",
+    "build:analysis": "node scripts/build-analysis.mjs"
+  },
+  "dependencies": {
+    "@xberg-io/tree-sitter-language-pack": "1.22.1",
+    "tsx": "^4.23.15"
+  }
+}

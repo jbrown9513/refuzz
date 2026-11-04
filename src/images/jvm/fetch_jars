@@ -1,0 +1,15 @@
+#!/bin/bash -eu
+# Copies Maven artifacts and their runtime dependencies from Maven Central into a folder: fetch_jars <dir> <group:artifact:version[:classifier]>...
+dir=$1
+shift
+pom=$(mktemp -d)
+{
+  echo '<project><modelVersion>4.0.0</modelVersion><groupId>refuzz</groupId><artifactId>tools</artifactId><version>1</version><dependencies>'
+  for coord in "$@"; do
+    IFS=: read -r g a v c <<< "$coord"
+    echo "<dependency><groupId>$g</groupId><artifactId>$a</artifactId><version>$v</version>${c:+<classifier>$c</classifier>}</dependency>"
+  done
+  echo '</dependencies></project>'
+} > "$pom/pom.xml"
+mvn -B -q -f "$pom/pom.xml" dependency:copy-dependencies -DoutputDirectory="$dir" -DincludeScope=runtime
+rm -rf "$pom"

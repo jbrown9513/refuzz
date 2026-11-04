@@ -1,0 +1,20 @@
+#!/bin/bash -eu
+# OSS-Fuzz's compile_javascript_fuzzer: makes $OUT/<name> run the Jazzer.js target <fuzz target> of the project in
+# $SRC/<project>, which is copied to $OUT/<project> with its node_modules (where build.sh installed @jazzer.js/core).
+# Usage: compile_javascript_fuzzer <project> <fuzz target, relative to the project's folder> [Jazzer.js arguments]
+project=$1
+fuzz_target=$2
+jazzerjs_args=${@:3}
+
+if [ ! -d $OUT/$project ]; then
+  cp -r $SRC/$project $OUT/$project
+fi
+
+fuzzer_basename=$(basename -s .js $fuzz_target)
+
+echo "#!/bin/bash
+# LLVMFuzzerTestOneInput so that the wrapper script is recognized as a fuzz target for 'check_build'.
+project_dir=\$(dirname \"\$0\")/$project
+\$project_dir/node_modules/@jazzer.js/core/dist/cli.js \$project_dir/$fuzz_target $jazzerjs_args \$JAZZERJS_EXTRA_ARGS -- \$@" > $OUT/$fuzzer_basename
+
+chmod +x $OUT/$fuzzer_basename

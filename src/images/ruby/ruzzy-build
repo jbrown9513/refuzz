@@ -1,0 +1,15 @@
+#!/bin/bash -eu
+# OSS-Fuzz's ruzzy-build: copies the Ruzzy target <file.rb> to $OUT and writes $OUT/<name>, which runs it with `ruzzy` and
+# the gems this build installed ($OUT/fuzz-gem).
+fuzz_target=$(basename "$1")
+harness_sh=${fuzz_target::-3}
+cp "$1" "$OUT/$fuzz_target"
+cat > "$OUT/$harness_sh" <<WRAPPER
+#!/usr/bin/env bash
+# LLVMFuzzerTestOneInput for fuzzer detection.
+this_dir=\$(dirname "\$0")
+export GEM_HOME=\$this_dir/fuzz-gem
+
+ruzzy \$this_dir/$fuzz_target "\$@"
+WRAPPER
+chmod +x "$OUT/$harness_sh"

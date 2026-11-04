@@ -1,0 +1,11 @@
+#!/bin/bash -eu
+# Runs a pure-Ruby Ruzzy target as Ruzzy's README does: through Ruzzy.trace, so the Ruby lines it runs are libFuzzer's
+# coverage, with Ruzzy's sanitizer runtime preloaded (a native extension built with the instrumented flags needs it) and the
+# ASan options Ruby needs; ODR checking is off, since a gem's extensions are separate shared objects that may each define the
+# same global. Usage: ruzzy <target.rb> [libFuzzer flags and corpus folders]
+target=$(realpath "$1")
+shift
+export ASAN_OPTIONS="${ASAN_OPTIONS:+$ASAN_OPTIONS:}allocator_may_return_null=1:detect_leaks=0:use_sigaltstack=0:detect_odr_violation=0"
+export LD_PRELOAD="$(ruby -e 'require "ruzzy"; print Ruzzy::ASAN_PATH')"
+# The target is taken off ARGV before Ruzzy loads: Ruzzy hands libFuzzer the ARGV it sees then.
+exec ruby -e 't = ARGV.shift; require "ruzzy"; Ruzzy.trace(t)' "$target" "$@"

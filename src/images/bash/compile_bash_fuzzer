@@ -1,0 +1,48 @@
+#!/bin/bash -eu
+# compile_bash_fuzzer, in the shape of OSS-Fuzz's compile_javascript_fuzzer: makes $OUT/<name> run the Bash target
+# <fuzz target> (a script defining `fuzz`) on the project in $SRC/<project>, which is copied to $OUT/<project>.
+# Bash has no fuzzing engine, so $OUT/<name> replays inputs: each file given, and each file in each folder given, through
+# `fuzz` in its own bash with set -u, the project's folder as the working directory and the input's bytes as "$1" (NUL
+# bytes dropped). libFuzzer's flags (-runs=, -dict=, …) are accepted and ignored. It prints the inputs whose run exited
+# non-zero (a check line in fuzz) or made bash report an error, and exits 1 if any did.
+# Usage: compile_bash_fuzzer <project> <fuzz target>
+project=$1
+fuzz_target=$2
+
+if [ ! -d $OUT/$project ]; then
+  cp -r $SRC/$project $OUT/$project
+fi
+
+fuzzer_basename=$(basename -s .sh $fuzz_target)
+cp $fuzz_target $OUT/$fuzzer_basename.sh
+
+cat > $OUT/$fuzzer_basename <<WRAPPER
+#!/bin/bash
+here=\$(cd "\$(dirname "\$0")" && pwd -P)
+project_dir=\$here/$project
+target=\$here/$fuzzer_basename.sh
+WRAPPER
+cat >> $OUT/$fuzzer_basename <<'WRAPPER'
+inputs=()
+for a in "$@"; do
+  case $a in
+    -*) ;;
+    *) a=$(realpath "$a")
+       if [ -d "$a" ]; then while IFS= read -r -d '' f; do inputs+=("$f"); done < <(find "$a" -type f -print0); elif [ -f "$a" ]; then inputs+=("$a"); fi ;;
+  esac
+done
+failed=0
+err=$(mktemp)
+for f in "${inputs[@]}"; do
+  (cd "$project_dir" && TMPDIR=$(mktemp -d) bash -u -o pipefail -c 'source "$1"; data=$(tr -d "\000" <"$2"; printf x); fuzz "${data%x}" >/dev/null; exit 0' fuzz "$target" "$f") 2>"$err"
+  st=$?
+  if [ "$st" -ne 0 ] || grep -q ': line [0-9]*: ' "$err"; then
+    echo "FAIL $f (exit $st)"
+    tail -n 3 "$err"
+    failed=1
+  fi
+done
+rm -f "$err"
+exit $failed
+WRAPPER
+chmod +x $OUT/$fuzzer_basename

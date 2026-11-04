@@ -1,0 +1,17 @@
+#!/bin/bash -eu
+# compile_php_fuzzer <target.php> [project folder]: copies the php-fuzzer target to $OUT and writes $OUT/<name>, which runs
+# php-fuzzer on it with assert() on and the project's Composer autoloader prepended (the project folder defaults to the
+# current one), REFUZZ_ROOT naming the project folder for a target that requires a file by its path. Arguments to
+# $OUT/<name> go to `php-fuzzer fuzz` after the target: a corpus folder, then its options (--dict, --max-runs, --timeout).
+target=$1
+project=$(realpath "${2:-$PWD}")
+name=$(basename "$target" .php)
+cp "$target" "$OUT/$name.php"
+prepend=""
+if [ -f "$project/vendor/autoload.php" ]; then prepend="-d auto_prepend_file=$project/vendor/autoload.php"; fi
+cat > "$OUT/$name" <<WRAPPER
+#!/bin/sh
+this_dir=\$(dirname "\$0")
+REFUZZ_ROOT=$project exec php -d zend.assertions=1 -d assert.exception=1 -d memory_limit=1G $prepend /opt/php-fuzzer/vendor/bin/php-fuzzer fuzz "\$this_dir/$name.php" "\$@"
+WRAPPER
+chmod +x "$OUT/$name"
