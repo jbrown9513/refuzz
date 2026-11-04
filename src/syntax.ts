@@ -9,8 +9,9 @@ import { join, resolve } from 'node:path';
 import { setImmediate as yieldToLoop } from 'node:timers/promises';
 import { setFlagsFromString } from 'node:v8';
 import { runInNewContext } from 'node:vm';
-// @ts-ignore: perch's analysis API, bundled from a perch checkout by scripts/build-analysis.mjs
-import * as perch from '../vendor/perch/lib.mjs';
+import treeSitterPack from '@xberg-io/tree-sitter-language-pack';
+// @ts-ignore: perch has no type declarations
+import * as perch from '@lakeday/perch';
 import type { BranchPoint, Param, Target } from './types.ts';
 
 // Records are keyed by blob and path, so an unchanged file is parsed once across runs and projects.
@@ -39,7 +40,7 @@ export function parse(source: string, language: string): any | null {
   const g = grammar(language);
   if (!g) return null;
   const bytes = Buffer.from(source);
-  return new perch.Node(perch.downloading(() => perch.treeSitterPack.getParser(g)).parse(source).rootNode(), bytes);
+  return new perch.Node(perch.downloading(() => treeSitterPack.getParser(g)).parse(source).rootNode(), bytes);
 }
 
 /** Node types that start a branch, across the grammars perch ships. */
