@@ -9,9 +9,11 @@ project's own test suite before it is reported.
 refuzz temporalio/temporal --language go --minutes 60 --cents 400
 ```
 
+[Watch the demo](https://youtu.be/qgFttMC9WfU) (2½ minutes, a real run on Dapr).
+
 ## What it found
 
-31 bugs, each confirmed by hand against the source, in Temporal, gVisor, the MCP Go and Python SDKs, LangGraph,
+32 bugs, each confirmed by hand against the source, in Temporal, gVisor, the MCP Go and Python SDKs, LangGraph,
 Prefect, Dagster, Hatchet, Inngest, BentoML, smolagents, tiktoken, mem0, json_repair, targetcli, Dapr and Simon
 Willison's `llm`. The list, with the commit, file and evidence for each, is in [findings/](findings/README.md), except four that are held back until their projects have had a private report.
 
