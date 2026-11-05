@@ -1,47 +1,28 @@
-# refuzz
+<p align="center">
+  <a href="https://github.com/jbrown9513/refuzz">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset=".github/logo.svg">
+      <img alt="refuzz" src=".github/logo-light.svg" width="300">
+    </picture>
+  </a>
+</p>
 
-refuzz fuzzes a project you point it at, in any of 14 languages, and gets better at that project every time it runs. A
-model writes the fuzz targets, the language's own engine (libFuzzer, Atheris, Jazzer, cargo-fuzz, `go test -fuzz`) runs
-them, and coverage decides what gets rewritten next. Each failure is judged and shrunk, then reproduced as a test in the
-project's own test suite before it is reported.
+<p align="center">
+  <a href="findings/README.md"><img alt="bugs found: 32" src="https://img.shields.io/badge/bugs%20found-32-8b6cff?labelColor=1a1d26"></a>
+  <a href="#languages"><img alt="languages: 14" src="https://img.shields.io/badge/languages-14-3ff0b4?labelColor=1a1d26"></a>
+  <a href="https://nodejs.org"><img alt="node 22 or later" src="https://img.shields.io/badge/node-%E2%89%A522-8b6cff?labelColor=1a1d26"></a>
+  <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-3ff0b4?labelColor=1a1d26"></a>
+</p>
 
-```sh
-refuzz temporalio/temporal --language go --minutes 60 --cents 400
-```
+<p align="center">
+  <a href="https://youtu.be/qgFttMC9WfU">demo</a> &nbsp;&middot;&nbsp;
+  <a href="findings/README.md">findings</a> &nbsp;&middot;&nbsp;
+  <a href="#how-it-improves-itself">how it works</a>
+</p>
 
-[Watch the demo](https://youtu.be/qgFttMC9WfU) (2½ minutes, a real run on Dapr).
+Self-improving fuzzer for 14 languages.
 
-## What it found
-
-32 bugs, each confirmed by hand against the source, in Temporal, gVisor, the MCP Go and Python SDKs, LangGraph,
-Prefect, Dagster, Hatchet, Inngest, BentoML, smolagents, tiktoken, mem0, json_repair, targetcli, Dapr and Simon
-Willison's `llm`. The list, with the commit, file and evidence for each, is in [findings/](findings/README.md), except four that are held back until their projects have had a private report.
-
-## How it improves itself
-
-Each run picks up where the last one stopped. Everything it learns about a project is kept in the project's own
-`.refuzz/` folder:
-
-1. **Build.** If the project is in OSS-Fuzz, refuzz uses that build. Otherwise the model writes a Dockerfile and
-   `build.sh` from the project's CI configuration, and rewrites them from the error until they work. The spec that
-   worked is kept.
-2. **Surfaces.** Code finds where outside data enters (files, sockets, requests, deserializers, public functions nothing
-   calls) and groups the entry points that reach the same code.
-3. **Targets.** The model writes OSS-Fuzz targets for each surface. A target is only rewritten when it is broken: it
-   doesn't build, its inputs never reach the entry point, it fails in its own code, or it asserts something the function
-   never promised. Working targets are never replaced.
-4. **Coverage.** Every input's project lines are measured. When coverage stops growing, the model writes a new target
-   aimed at the entry points, functions and branches nothing has reached yet. It is kept only if it reaches a line no
-   other target did.
-5. **Judging.** Only failures are judged. Each is shrunk to the smallest input and run again alone.
-6. **Verifying.** Each failure ends as a bug or not a bug, and a test decides it. The failure is written as a test in the
-   project's own test framework. Unless that test already starts where users call in, a second test must, and must fail
-   too. Where users call in is what the package exports (Python's `__all__`, a package.json's `exports`, a Rust crate's
-   `pub mod` chain, a C library's public headers, anything outside Go's `internal/`), its commands, and the handlers its
-   framework calls (routes, CLI commands, listeners). A file marking a function public is not enough: a failure that only
-   a direct call to an internal module reaches is not a bug. A bug gets an `issue.md` and a `pr.md`.
-
-refuzz never files anything. Reporting is a person's decision.
+<a href="https://youtu.be/qgFttMC9WfU"><img alt="refuzz building Dapr, writing a harness, and proving a nil pointer bug with a failing test" src=".github/demo.gif" width="880"></a>
 
 ## Quick start
 
@@ -78,6 +59,30 @@ Re-verify stored findings with the current verifier without fuzzing again:
 npx tsx src/reverify.ts mangiucugna/json_repair --language python --cents 100
 ```
 
+## How it improves itself
+
+Each run picks up where the last one stopped. Everything it learns about a project is kept in the project's own
+`.refuzz/` folder:
+
+1. **Build.** If the project is in OSS-Fuzz, refuzz uses that build. Otherwise the model writes a Dockerfile and
+   `build.sh` from the project's CI configuration, and rewrites them from the error until they work. The spec that
+   worked is kept.
+2. **Surfaces.** Code finds where outside data enters (files, sockets, requests, deserializers, public functions nothing
+   calls) and groups the entry points that reach the same code.
+3. **Targets.** The model writes OSS-Fuzz targets for each surface. A target is only rewritten when it is broken: it
+   doesn't build, its inputs never reach the entry point, it fails in its own code, or it asserts something the function
+   never promised. Working targets are never replaced.
+4. **Coverage.** Every input's project lines are measured. When coverage stops growing, the model writes a new target
+   aimed at the entry points, functions and branches nothing has reached yet. It is kept only if it reaches a line no
+   other target did.
+5. **Judging.** Only failures are judged. Each is shrunk to the smallest input and run again alone.
+6. **Verifying.** Each failure ends as a bug or not a bug, and a test decides it. The failure is written as a test in the
+   project's own test framework. Unless that test already starts where users call in, a second test must, and must fail
+   too. Where users call in is what the package exports (Python's `__all__`, a package.json's `exports`, a Rust crate's
+   `pub mod` chain, a C library's public headers, anything outside Go's `internal/`), its commands, and the handlers its
+   framework calls (routes, CLI commands, listeners). A file marking a function public is not enough: a failure that only
+   a direct call to an internal module reaches is not a bug. A bug gets an `issue.md` and a `pr.md`.
+
 ## Languages
 
 | Language | Target | Engine |
@@ -103,8 +108,7 @@ network before any target runs.
 
 ## The store
 
-Each surface is kept in `.refuzz/<language>/<surface>/` inside the project. It is written the moment something is found,
-so stopping a run loses nothing:
+Each surface is kept in `.refuzz/<language>/<surface>/` inside the project. It is written the moment something is found:
 
 - `targets/`: every target that built and reached the surface, one OSS-Fuzz file each.
 - `corpus/`: inputs that reached new coverage, named by content hash and shared by every target.
