@@ -1,12 +1,11 @@
 /**
- * node src/reverify.ts <path | owner/name> --language l [--store dir] [--cents 100] [--judge jev|decisions] [--fresh] [--labeled] [--unmeasured]
+ * node src/reverify.ts <path | owner/name> --language l [--store dir] [--cents 100] [--judge jev|decisions] [--fresh] [--unmeasured]
  *
  * Verifies again the failures a store already holds (src/verify.ts), without fuzzing: each failure under
  * `<store>/<language>/<surface>/findings/`, with its input, goes through reproduce, contract and group on the project built
  * from its stored build spec. For a verifier that has changed since the session that found them. Bugs go to the store's
- * report, as a session's do. --fresh decides every candidate again, the ones an earlier verification decided included: for
- * measuring a changed verifier against labeled findings (src/score.ts). --labeled verifies only the failures at a labeled
- * finding's site (data/labels.json), and --unmeasured runs the tests without measuring the lines they ran.
+ * report, as a session's do. --fresh decides every candidate again, the ones an earlier verification decided included, and
+ * --unmeasured runs the tests without measuring the lines they ran.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -20,7 +19,7 @@ import { OutOfBudget, providerOf, Spender } from './schedule.ts';
 import { head, run } from './run.ts';
 import { SurfaceStore } from './store.ts';
 import { readProject } from './syntax.ts';
-import { siteOf, Verifier } from './verify.ts';
+import { Verifier } from './verify.ts';
 
 const args = process.argv.slice(2);
 const flag = (name: string) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
@@ -43,14 +42,6 @@ for (const surface of readdirSync(store.root)) {
     if (existsSync(bin)) f.input = `hex ${readFileSync(bin).toString('hex')}`;
     findings.push(f);
   }
-}
-// The failures at a labeled finding's site: the label's pattern found in the failure's `path:function` or in its function.
-if (args.includes('--labeled')) {
-  const project = await readProject(dir);
-  const repo = dir.split('/').pop()!.replace('__', '/');
-  const patterns = (JSON.parse(readFileSync(new URL('../data/labels.json', import.meta.url), 'utf8')).labels as { repo: string; match: string }[]).filter((l) => l.repo === repo).map((l) => new RegExp(l.match, 'm'));
-  const at = findings.filter((f) => { const s = siteOf(project, f); return patterns.some((re) => re.test(`${s.path}:${s.function}`) || re.test(f.function)); });
-  findings.splice(0, findings.length, ...at);
 }
 log(`reverify: ${findings.length} failures in ${store.root}`);
 
