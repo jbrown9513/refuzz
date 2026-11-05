@@ -26,7 +26,7 @@
 
 Self-improving fuzzer for 14 languages.
 
-<a href="https://youtu.be/qgFttMC9WfU"><img alt="Run refuzz owner/repo. It builds the harness, improves coverage from run to run, and validates real bugs, such as one filed on Temporal." src=".github/demo.gif" width="880"></a>
+<a href="https://youtu.be/qgFttMC9WfU"><img alt="refuzz on Dapr: it builds a harness and rewrites it when it fails, coverage climbs to 5,200 lines, and 18 failures are ruled out before a real bug is filed." src=".github/demo.gif" width="880"></a>
 
 ## Quick start
 
