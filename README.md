@@ -8,6 +8,10 @@
 </p>
 
 <p align="center">
+  <a href="https://cerebralvalley.ai/e/meta-ai-developer-hackathon"><img alt="Meta Global AI Developer Hackathon 2026 submission" src="https://img.shields.io/badge/Meta%20Global%20AI%20Developer%20Hackathon-2026%20submission-0866ff?labelColor=1a1d26"></a>
+</p>
+
+<p align="center">
   <a href="findings/README.md"><img alt="bugs found: 32" src="https://img.shields.io/badge/bugs%20found-32-8b6cff?labelColor=1a1d26"></a>
   <a href="#languages"><img alt="languages: 14" src="https://img.shields.io/badge/languages-14-3ff0b4?labelColor=1a1d26"></a>
   <a href="https://nodejs.org"><img alt="node 22 or later" src="https://img.shields.io/badge/node-%E2%89%A522-8b6cff?labelColor=1a1d26"></a>
@@ -17,7 +21,7 @@
 <p align="center">
   <a href="https://youtu.be/qgFttMC9WfU">demo</a> &nbsp;&middot;&nbsp;
   <a href="findings/README.md">findings</a> &nbsp;&middot;&nbsp;
-  <a href="#how-it-improves-itself">how it works</a>
+  <a href="#how-it-works">how it works</a>
 </p>
 
 Self-improving fuzzer for 14 languages.
@@ -59,29 +63,28 @@ Re-verify stored findings with the current verifier without fuzzing again:
 npx tsx src/reverify.ts mangiucugna/json_repair --language python --cents 100
 ```
 
-## How it improves itself
+## How it works
 
-Each run picks up where the last one stopped. Everything it learns about a project is kept in the project's own
-`.refuzz/` folder:
+refuzz does the job of a fuzzing engineer.
 
-1. **Build.** If the project is in OSS-Fuzz, refuzz uses that build. Otherwise the model writes a Dockerfile and
-   `build.sh` from the project's CI configuration, and rewrites them from the error until they work. The spec that
-   worked is kept.
-2. **Surfaces.** Code finds where outside data enters (files, sockets, requests, deserializers, public functions nothing
-   calls) and groups the entry points that reach the same code.
-3. **Targets.** The model writes OSS-Fuzz targets for each surface. A target is only rewritten when it is broken: it
-   doesn't build, its inputs never reach the entry point, it fails in its own code, or it asserts something the function
-   never promised. Working targets are never replaced.
-4. **Coverage.** Every input's project lines are measured. When coverage stops growing, the model writes a new target
-   aimed at the entry points, functions and branches nothing has reached yet. It is kept only if it reaches a line no
-   other target did.
-5. **Judging.** Only failures are judged. Each is shrunk to the smallest input and run again alone.
-6. **Verifying.** Each failure ends as a bug or not a bug, and a test decides it. The failure is written as a test in the
-   project's own test framework. Unless that test already starts where users call in, a second test must, and must fail
-   too. Where users call in is what the package exports (Python's `__all__`, a package.json's `exports`, a Rust crate's
-   `pub mod` chain, a C library's public headers, anything outside Go's `internal/`), its commands, and the handlers its
-   framework calls (routes, CLI commands, listeners). A file marking a function public is not enough: a failure that only
-   a direct call to an internal module reaches is not a bug. A bug gets an `issue.md` and a `pr.md`.
+1. **Build.** The first step is getting the project to build. If the project is in OSS-Fuzz, refuzz starts from that
+   build. Otherwise the model reads the project's CI configuration and writes a Dockerfile and build script. Either way
+   it rewrites them from each error until they work, and later runs reuse that setup.
+2. **Surfaces.** refuzz uses [perch](https://github.com/lakeday-org/perch), a semantic code scanner, to build a call
+   graph that finds the entry points into the codebase: requests, files, sockets, deserializers and public functions.
+   Entry points that reach the same code are grouped into one surface.
+3. **Harnesses.** The model reads each surface's code and the project's own tests, then writes a harness that turns the
+   fuzzer's raw bytes into the inputs that code expects.
+4. **Coverage.** perch shows which code the project's own tests leave unchecked, and refuzz fuzzes that code first. When
+   coverage stops growing, the model looks at what was missed and writes a new harness to reach it.
+5. **Judging.** refuzz runs each failure again alone and drops any that don't repeat. Failures with the same cause become
+   one finding with the smallest input. The model checks failed assertions against the project's documentation.
+6. **Verification.** The model writes each failure as a test in the project's own test framework. If that test doesn't
+   start where users call in, a second test must start there and fail too. A failure only reachable by calling an
+   internal module directly is not a bug.
+7. **Reporting.** The model writes an issue and a draft pull request for each confirmed bug.
+8. **Repeat.** Harnesses, inputs, coverage and rejected attempts are saved in the project's `.refuzz` folder. The next
+   run picks up where the last one stopped.
 
 ## Languages
 
