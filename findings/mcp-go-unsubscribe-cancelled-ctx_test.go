@@ -1,3 +1,6 @@
+// modelcontextprotocol/go-sdk at fa799c5. Copy to mcp/, then run:
+//   go test ./mcp -run TestReproUnsubscribeCancelledCtx
+
 package mcp
 
 import (

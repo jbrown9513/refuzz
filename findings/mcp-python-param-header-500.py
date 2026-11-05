@@ -1,3 +1,6 @@
+# modelcontextprotocol/python-sdk at d7845c0. Install that commit, then run:
+#   python mcp-python-param-header-500.py
+
 import anyio, httpx2 as httpx
 from mcp.server.mcpserver import MCPServer
 from mcp_types.version import LATEST_MODERN_VERSION
