@@ -118,10 +118,9 @@ so stopping a run loses nothing:
 ## Built on
 
 Source analysis (methods, syntax trees and the call graph, for every language) comes from
-[perch](https://github.com/lakeday-org/perch), which is MIT licensed. A bundle of it is in `vendor/perch/`, rebuilt with
-`npm run build:analysis -- <path-to-perch>`. What the project's own tests run and check is measured with
-`perch coverage`.
+[perch](https://github.com/lakeday-org/perch), which is MIT licensed. What the project's own tests run and check is
+measured with `perch coverage`.
 
 ## License
 
-MIT. See [LICENSE](LICENSE). The bundle in `vendor/perch/` keeps its own MIT license.
+MIT. See [LICENSE](LICENSE).

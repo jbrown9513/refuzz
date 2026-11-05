@@ -15,13 +15,14 @@
  */
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { docker } from './run.ts';
 import type { Built } from './types.ts';
 
-/** The perch release that measures, installed once into a Docker volume with the Node that runs it. */
-const PERCH_VERSION = '0.4.9';
+/** The perch release that measures, the one refuzz depends on, installed once into a Docker volume with the Node that runs it. */
+const { version: PERCH_VERSION } = createRequire(import.meta.url)('@lakeday/perch/package.json');
 const VOLUME = `perch-cli-${PERCH_VERSION}`;
 
 export interface MethodTests {
@@ -79,28 +80,15 @@ fi
 exec /opt/perch/node /opt/perch/node_modules/@lakeday/perch/bin/perch.mjs coverage --paths "$REFUZZ_PATHS" --out /out --all --verbose
 `;
 
-/**
- * Fixes to the installed perch, applied to its bundle each time (each is a no-op once applied). perch's pytest mutant server
- * asks every loaded module for `__file__`, and on a lazily loaded module (PEP 562's __getattr__) that imports it: prefect's
- * environment then imported tkinter, which its image lacks, and the server stopped. The module's own dictionary does not import,
- * and neither does asking only functions for their code.
- */
-const PATCHES = [
-  String.raw`s/getattr(module, '__file__', None)/(getattr(module, '__dict__', None) or {}).get('__file__')/`,
-  // The same in its index of live functions, which asked every object in memory for `__code__` before checking it is a function.
-  String.raw`s/code = getattr(item, '__code__', None)$/code = item.__code__ if type(item).__name__ == 'function' else None/`,
-];
-
 /** The Docker volume holding Node and perch, made once from the official Node image. */
 async function perchVolume(log: (s: string) => void): Promise<boolean> {
-  const patch = () => docker(['run', '--rm', '-v', `${VOLUME}:/opt/perch`, 'node:22', 'sed', '-i', ...PATCHES.flatMap((x) => ['-e', x]), '/opt/perch/node_modules/@lakeday/perch/dist/cli.mjs']);
-  if ((await docker(['volume', 'inspect', VOLUME])).code === 0) return (await patch()).code === 0;
+  if ((await docker(['volume', 'inspect', VOLUME])).code === 0) return true;
   log(`  tests: installing perch ${PERCH_VERSION} for measuring the project's tests`);
   await docker(['volume', 'create', VOLUME]);
   const r = await docker(['run', '--rm', '-v', `${VOLUME}:/opt/perch`, 'node:22', 'bash', '-c',
     `cp /usr/local/bin/node /opt/perch/node && cd /opt/perch && npm install --no-audit --no-fund --loglevel=error @lakeday/perch@${PERCH_VERSION}`], { timeoutMs: 600_000 });
   if (r.code !== 0) { await docker(['volume', 'rm', VOLUME]); log(`  tests: perch could not be installed: ${r.stderr.slice(-300)}`); return false; }
-  return (await patch()).code === 0;
+  return true;
 }
 
 /** A saved report (perch coverage's latest.jsonl): a header line, then one `[list, item]` line per file, method, test and problem. */

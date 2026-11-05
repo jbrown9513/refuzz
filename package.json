@@ -14,10 +14,10 @@
   "scripts": {
     "fuzz": "tsx src/cli.ts",
     "reverify": "tsx src/reverify.ts",
-    "score": "tsx src/score.ts",
-    "build:analysis": "node scripts/build-analysis.mjs"
+    "score": "tsx src/score.ts"
   },
   "dependencies": {
+    "@lakeday/perch": "^0.5.2",
     "@xberg-io/tree-sitter-language-pack": "1.22.1",
     "tsx": "^4.23.15"
   }
