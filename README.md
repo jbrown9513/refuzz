@@ -124,7 +124,8 @@ Each surface is kept in `.refuzz/<language>/<surface>/` inside the project:
 
 ## Built on
 
-Source analysis (methods, syntax## Built on
-
 [perch](https://github.com/lakeday-org/perch) (MIT) does the source analysis and test coverage.
 
+## License
+
+MIT. See [LICENSE](LICENSE).
