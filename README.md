@@ -26,7 +26,7 @@
 
 Self-improving fuzzer for 14 languages.
 
-<a href="https://youtu.be/qgFttMC9WfU"><img alt="refuzz building Dapr, writing a harness, and proving a nil pointer bug with a failing test" src=".github/demo.gif" width="880"></a>
+<a href="https://youtu.be/qgFttMC9WfU"><img alt="Run refuzz owner/repo. It builds the harness, improves coverage from run to run, and validates real bugs, such as one filed on Temporal." src=".github/demo.gif" width="880"></a>
 
 ## Quick start
 
