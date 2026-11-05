@@ -111,7 +111,7 @@ network before any target runs.
 
 ## The store
 
-Each surface is kept in `.refuzz/<language>/<surface>/` inside the project. It is written the moment something is found:
+Each surface is kept in `.refuzz/<language>/<surface>/` inside the project:
 
 - `targets/`: every target that built and reached the surface, one OSS-Fuzz file each.
 - `corpus/`: inputs that reached new coverage, named by content hash and shared by every target.
@@ -124,10 +124,7 @@ Each surface is kept in `.refuzz/<language>/<surface>/` inside the project. It i
 
 ## Built on
 
-Source analysis (methods, syntax trees and the call graph, for every language) comes from
-[perch](https://github.com/lakeday-org/perch), which is MIT licensed. What the project's own tests run and check is
-measured with `perch coverage`.
+Source analysis (methods, syntax## Built on
 
-## License
+[perch](https://github.com/lakeday-org/perch) (MIT) does the source analysis and test coverage.
 
-MIT. See [LICENSE](LICENSE).
