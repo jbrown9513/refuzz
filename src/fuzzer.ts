@@ -1038,8 +1038,8 @@ async function fuzzBatch(surfaces: Surface[], p: Project, rt: Runtime, models: {
   const build = async (items: { t: number; name: string; source: string; kept: boolean }[]): Promise<(Live | string)[]> => {
     if (!items.length) return [];
     // A target that names nothing of the project fuzzes nothing: sent back to its writer unbuilt, as a build error is.
-    const empty = items.map((x) => (namesProject(x.source, [...surfaces[x.t].entries, ...surfaces[x.t].reach], rt.isImport) ? undefined
-      : `the target calls nothing in the project: it names none of the surface's functions or types (${surfaces[x.t].entries.map((e) => e.name).slice(0, 4).join(', ')}) outside comments and strings. Call the function it is for, through what the project's own callers or tests use; a target that only reads its input fuzzes nothing`));
+    const empty = items.map((x) => (namesProject(x.source, [...surfaces[x.t].entries, ...surfaces[x.t].reach, ...surfaces[x.t].via], rt.isImport) ? undefined
+      : `the target calls nothing in the project: it names none of the surface's functions or types (${[...surfaces[x.t].entries, ...surfaces[x.t].via].map((e) => e.name).slice(0, 4).join(', ')}) outside comments and strings. Call the function it is for, through what the project's own callers or tests use; a target that only reads its input fuzzes nothing`));
     if (empty.some(Boolean)) {
       const rest = await build(items.filter((_, i) => !empty[i]));
       return empty.map((e) => e ?? rest.shift()!);
