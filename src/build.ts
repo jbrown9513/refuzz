@@ -323,6 +323,28 @@ async function pinGo(box: Container, dir: string, log: (s: string) => void): Pro
   if (r.code !== 0) await box.exec('go env -u GOTOOLCHAIN');
 }
 
+/** The channel a Rust project pins in rust-toolchain.toml or the older rust-toolchain, if it is a name rustup can install. */
+export function rustPin(dir: string): string | undefined {
+  const file = ['rust-toolchain.toml', 'rust-toolchain'].map((f) => join(dir, f)).find((f) => statSync(f, { throwIfNoEntry: false })?.isFile());
+  if (!file) return undefined;
+  const text = readFileSync(file, 'utf8');
+  const channel = /^\s*channel\s*=\s*["']([^"']+)["']/m.exec(text)?.[1] ?? (text.includes('[toolchain]') ? undefined : text.trim());
+  return channel && /^[A-Za-z0-9][A-Za-z0-9.+_-]*$/.test(channel) ? channel : undefined;
+}
+
+/**
+ * A Rust project built with the toolchain it pins: what its CI builds with, and its dependencies may need a newer Rust than
+ * the base image's. The base image sets RUSTUP_TOOLCHAIN, which makes rustup ignore the project's file, so the spec's image
+ * sets it instead: after FROM for the spec's own RUN lines, and last so a rewritten spec cannot swap it for another. Fuzz
+ * builds use nightly-only flags, which a stable or beta toolchain accepts with RUSTC_BOOTSTRAP.
+ */
+export function pinRust(dockerfile: string, dir: string): string {
+  const channel = rustPin(dir);
+  if (!channel) return dockerfile;
+  const lines = [`ENV RUSTUP_TOOLCHAIN=${channel}`, ...(channel.startsWith('nightly') ? [] : ['ENV RUSTC_BOOTSTRAP=1']), `RUN rustup toolchain install ${channel} --profile=minimal --component rust-src`];
+  return `${dockerfile.replace(/^\s*FROM\s.*$/im, (from) => [from, ...lines].join('\n')).trimEnd()}\nENV RUSTUP_TOOLCHAIN=${channel}\n`;
+}
+
 /** Folders of the checkout not copied into the image: refuzz's own state and dependencies a build installs again. */
 const NOT_COPIED = ['./.refuzz', './.fuzz', './node_modules'];
 
@@ -346,8 +368,10 @@ printf '%s\\n' CC=gcc CXX=g++ "CFLAGS='-O1 -g'" "CXXFLAGS='-O1 -g'" >> /src/refu
 async function attempt(spec: BuildSpec, b: { dir: string; language: string; name: string; adapter: Adapter; testSetup: string; testsTried: boolean; setUpTests: (box: Container, src: string) => Promise<void>; inspect: (box: Container, src: string, error: string) => Promise<string> }, log: (s: string) => void): Promise<Built | string> {
   const { family, from } = familyOf(b.language);
   const base = await baseImage(family, log);
-  const specHash = createHash('sha1').update(`${spec.dockerfile}\0${spec.build}\0${base}`).digest('hex').slice(0, 12);
-  const src = workdirOf(spec.dockerfile, b.name);
+  const dockerfile = family === 'rust' ? pinRust(spec.dockerfile, b.dir) : spec.dockerfile;
+  if (dockerfile !== spec.dockerfile) log(`  build: Rust ${rustPin(b.dir)} as the project pins it, not the image's`);
+  const specHash = createHash('sha1').update(`${dockerfile}\0${spec.build}\0${base}`).digest('hex').slice(0, 12);
+  const src = workdirOf(dockerfile, b.name);
   const built = `refuzz-built-${family}:${createHash('sha1').update(`${specHash}|${await revision(b.dir)}|${b.testSetup}|${COVERAGE_TOOLS}`).digest('hex').slice(0, 12)}`;
   // An image built before passed `ready` when it was built (one that does not is removed), so only a new build is checked.
   // An image whose test suite was never set up (built before test.sh, or its writer failed) is built again, once.
@@ -356,7 +380,7 @@ async function attempt(spec: BuildSpec, b: { dir: string; language: string; name
     // The spec's image, its FROM line pointed at the base image built here, OSS-Fuzz's or refuzz's name alike.
     const ctx = resolve('.fuzz', 'build', specHash);
     mkdirSync(ctx, { recursive: true });
-    writeFileSync(join(ctx, 'Dockerfile'), spec.dockerfile.replace(/^(\s*FROM\s+)(\S+)/im, (m, pre, image) => (image === from || /^gcr\.io\/oss-fuzz-base\/base-builder/.test(image) || /^refuzz\/base-builder/.test(image) ? `${pre}${base}` : m)));
+    writeFileSync(join(ctx, 'Dockerfile'), dockerfile.replace(/^(\s*FROM\s+)(\S+)/im, (m, pre, image) => (image === from || /^gcr\.io\/oss-fuzz-base\/base-builder/.test(image) || /^refuzz\/base-builder/.test(image) ? `${pre}${base}` : m)));
     writeFileSync(join(ctx, 'build.sh'), spec.build);
     writeFileSync(join(ctx, 'project.yaml'), spec.project);
     const image = `refuzz-spec-${family}:${specHash}`;
