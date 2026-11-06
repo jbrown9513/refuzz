@@ -213,10 +213,11 @@ function panicReport(stderr: string, repo: (p: string) => string | null, target:
 const SAN_RUSTC = (src: string) => [
   '#!/bin/sh',
   'proj=',
+  'target=',
   'for a in "$@"; do',
-  `  case "$a" in build_script_build|proc-macro) exec "$@";; ${src}/*.rs|targets/*.rs) proj=1;; esac`,
+  `  case "$a" in --target|--target=*) target=1;; ${src}/*.rs|targets/*.rs) proj=1;; esac`,
   'done',
-  'if [ -n "$proj" ]; then exec "$@" $REFUZZ_SAN_FLAGS; fi',
+  'if [ -n "$proj" ] && [ -n "$target" ]; then exec "$@" $REFUZZ_SAN_FLAGS; fi',
   'exec "$@"', '',
 ].join('\n');
 
@@ -230,7 +231,9 @@ const WORK = '/work/refuzz-rust';
  * makes the binary refuzz's in-process driver); native() builds the same file in WORK/n-<crate> against the real
  * libfuzzer-sys. The project's crates and the target binary are instrumented (SAN_RUSTC): generic project code is
  * monomorphized in the binary that instantiates it. refuzz-rt (its sanitizer callbacks, the serve loop, panic reports),
- * dependencies, build scripts and proc macros stay plain. Everything builds offline from what the build spec fetched and
+ * dependencies, build scripts and proc macros stay plain: target crates build with an explicit --target, so anything that
+ * runs on the host, including a project crate a build script depends on, reaches SAN_RUSTC without one and is never linked
+ * against a coverage runtime it does not have. Everything builds offline from what the build spec fetched and
  * the base image's libfuzzer-sys and arbitrary.
  */
 function rustFuzz(o: { place: Place; src: string; dir: string; crateOf: (path: string) => Crate | null; crates: Crate[]; repoPath: (p: string, c: Crate) => string | null; log: (s: string) => void }): FuzzRuntime {
@@ -317,7 +320,7 @@ function rustFuzz(o: { place: Place; src: string; dir: string; crateOf: (path: s
     let live = Object.keys(sources).filter((n) => balanced(sources[n]) || ((errors[n] = 'unbalanced brackets in the target'), false));
     for (let attempt = 0; attempt < 12 && live.length; attempt++) {
       const g = await crateDir(c, mode, Object.fromEntries(live.map((n) => [n, sources[n]])));
-      const r = await place.run(['sh', '-c', 'touch targets/*.rs && cargo build --release --offline --bins --message-format=json'], { cwd: g, env: buildEnv(mode), timeoutMs: 3_600_000 });
+      const r = await place.run(['sh', '-c', `touch targets/*.rs && cargo build --release --offline --bins --message-format=json --target "$(rustc -vV | sed -n 's/^host: //p')"`], { cwd: g, env: buildEnv(mode), timeoutMs: 3_600_000 });
       const msgs = r.stdout.split('\n').filter((l) => l.startsWith('{')).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
       const exes = new Map<string, string>(msgs.filter((m) => m.reason === 'compiler-artifact' && m.target?.kind?.includes('bin') && live.includes(m.target.name) && m.executable).map((m) => [m.target.name, m.executable]));
       if (r.code === 0 && live.every((n) => exes.has(n))) return exes;
